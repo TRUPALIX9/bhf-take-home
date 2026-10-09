@@ -18,7 +18,7 @@ if [ -f "$root/python-po-parser/po_extract.py" ]; then
   cd "$root/python-po-parser"
   step "python: lint";    ruff check .
   step "python: test";    python3 -m pytest -q
-  step "python: run";     python3 po_extract.py
+  step "python: run";     python3 po_extract.py --output "$(mktemp -d)/check.xlsx"  # keep the committed output untouched
 fi
 
 printf '\nAll checks passed.\n'
