@@ -1,3 +1,5 @@
+import { Card } from "@/components/ui/Card";
+
 /** One headline number with a label, used in the stat rows on both pages. */
 export function StatCard({
   label,
@@ -11,12 +13,12 @@ export function StatCard({
   testId?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-line bg-white p-4">
+    <Card className="gap-1">
       <span className="text-muted">{label}</span>
-      <span className="num text-2xl font-semibold tracking-tight" data-testid={testId}>
+      <span className="num text-xl font-semibold tracking-tight whitespace-nowrap sm:text-2xl" data-testid={testId}>
         {value}
       </span>
       {note && <span className="text-xs text-muted">{note}</span>}
-    </div>
+    </Card>
   );
 }

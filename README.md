@@ -5,6 +5,8 @@
 | Next.js assessment (required) | [`nextjs-app/`](nextjs-app/README.md) | Done |
 | Python assessment (optional) | [`python-po-parser/`](python-po-parser/README.md) | Done |
 
+![PO Review dashboard](docs/screenshots/list.png)
+
 Both parts use purchase orders as their subject. The Next.js app reviews POs; the Python script turns a vendor PO into a spreadsheet. The folders are independent and each has its own README.
 
 Design notes and dependency graphs: [`docs/DESIGN.md`](docs/DESIGN.md).

@@ -57,9 +57,12 @@ flowchart TD
   List --> Table["OrdersTable (server)<br/>rows for the filter"]
   Summary --> Tabs["StatusTabs (client)<br/>instant highlight"]
   Detail["orders/[poNumber]/page.tsx<br/>404 check + Suspense"] --> OD["OrderDetail (server)"]
-  OD --> Steps["ProcessSteps"]
-  OD --> Toggle["ToggleStatusButton (client)"]
-  Toggle --> Action["app/actions.ts<br/>toggleReviewStatus"]
+  Steps["ProcessSteps"]
+  OD --> Review["ReviewPanel (client)<br/>useOptimistic + useActionState"]
+  Review --> Steps
+  Review --> Action["app/actions.ts<br/>toggleReviewStatus"]
+  OD --> UI["components/ui<br/>Button, Badge, Card, Th/Td, Spinner"]
+  Review --> UI
   Action --> Orders["lib/orders.ts<br/>server-only, cache()"]
   Summary --> Orders
   Table --> Orders
@@ -98,11 +101,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as Reviewer
-  participant BTN as ToggleStatusButton
+  participant BTN as ReviewPanel
   participant A as actions.ts
   participant O as lib/orders.ts
   U->>BTN: click Approve
-  BTN->>BTN: isPending = true (spinner, "Saving…")
+  BTN->>BTN: optimistic: badge + step tracker flip, connector fills, spinner on button
   BTN->>A: POST form data (poNumber)
   A->>O: orderExists(poNumber)
   alt unknown PO
@@ -111,10 +114,11 @@ sequenceDiagram
     A->>O: toggleStatus(poNumber)
     alt save fails
       A-->>BTN: { error: PO-501 } (logged on server)
+      BTN-->>U: React rolls the optimistic status back, error under the button
     else saved
       A->>A: revalidatePath("/") and ("/orders/po")
       A-->>BTN: {} + fresh page data in the same response
-      BTN-->>U: badge, step tracker and button label update in place
+      BTN-->>U: server status now matches what is already on screen
     end
   end
 ```

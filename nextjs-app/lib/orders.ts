@@ -39,6 +39,8 @@ export const getOrders = cache(async (): Promise<Order[]> => {
 
 export async function getOrder(poNumber: string): Promise<Order | undefined> {
   await wait();
+  // Test hook: the e2e suite sets FAIL_PO to prove the error boundary works. Unset in normal use.
+  if (process.env.FAIL_PO === poNumber) throw new Error(`Simulated failure loading ${poNumber}`);
   const order = orders.find((o) => o.poNumber === poNumber);
   return order && withCurrentStatus(order);
 }

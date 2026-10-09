@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { linkClass } from "@/components/ui/Button";
 import { appErrors } from "@/lib/errors";
 
 export default function OrderNotFound() {
@@ -8,7 +9,7 @@ export default function OrderNotFound() {
       <p className="font-mono text-xs text-muted">Error {code}</p>
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       <p className="text-muted">{message}</p>
-      <Link href="/" className="mt-2 font-medium text-accent hover:underline">
+      <Link href="/" className={`mt-2 ${linkClass}`}>
         Back to purchase orders
       </Link>
     </div>

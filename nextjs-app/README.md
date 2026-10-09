@@ -1,17 +1,21 @@
 # PO Review (Next.js assessment)
 
-A small internal dashboard for reviewing vendor purchase orders. The list of POs is rendered on the server, each PO has a detail page with its line items and where it is in the review flow, and a server action approves a PO or moves it back to review.
+A small internal dashboard for reviewing vendor purchase orders. The list of POs is rendered on the server. Each PO has a detail page with its line items and where it is in the review flow. A server action approves a PO or moves it back to review.
 
-The look is a plain product dashboard (IBM Plex Sans, white cards, hairline borders) using Britannica Home Fashions' slate blue from britannicahome.com as the one accent.
+![Purchase order list](../docs/screenshots/list.png)
+
+| PO detail | Approved | Phone |
+|---|---|---|
+| ![PO detail](../docs/screenshots/detail.png) | ![PO approved, step tracker complete](../docs/screenshots/detail-approved.png) ![Error page with code](../docs/screenshots/error.png) | ![Phone layout](../docs/screenshots/mobile.png) |
 
 ## Run it
 
-Requires Node 20 or newer (tested on Node 22 and 26).
+Requires Node 20 or newer. Built and tested on Node 26; CI runs on Node 22.
 
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm run dev:slow     # same, with 1.2s simulated latency so loading skeletons are visible
+npm run dev:slow     # same, with 1.2 s simulated latency so loading states are visible
 ```
 
 Production build:
@@ -26,34 +30,70 @@ Checks:
 npm run lint
 npx tsc --noEmit
 npm test             # Vitest unit tests for lib/
-npx playwright install chromium   # first time only (or set PW_CHANNEL=chrome to use installed Chrome)
-npm run test:e2e     # Playwright: builds, starts on :3100, runs desktop + mobile
+npx playwright install chromium   # first time only (or prefix the next line with PW_CHANNEL=chrome to use installed Chrome)
+npm run test:e2e     # Playwright: builds, starts on :3100, runs desktop + 375px phone
+npm run screenshots  # regenerates the images in ../docs/screenshots
 ```
 
-## What's here
+## The brief, and where each part is
 
 | Requirement | Where | What it does |
 |---|---|---|
-| Next 15, App Router, TypeScript, Tailwind | `package.json`, `app/` | Next 15.5, React 19, Tailwind v4 |
-| Server-rendered list | `app/page.tsx` | A Server Component reads all POs from `lib/orders.ts` and renders a table (stacked rows on phones). No client-side fetching. |
-| Dynamic route | `app/orders/[poNumber]/page.tsx` | Shows one PO: dates, buyer, the three address blocks, and every line item with SKU, UPC and totals. Unknown PO numbers call `notFound()` and show `not-found.tsx` with a 404 status. |
-| Server action | `app/actions.ts` | `toggleReviewStatus` moves a PO between **Pending review** and **Approved**. It checks the PO exists, updates it, and revalidates the list and detail pages so both show the new status. |
-| Pending state | `components/ToggleStatusButton.tsx` | The only client component. `useActionState` disables the button and shows "Saving…" while the action runs. |
+| Next 15, App Router, TypeScript, Tailwind | `package.json`, `app/` | Next 15.5, React 19, Tailwind v4. |
+| Server-rendered list | `app/page.tsx` → `components/OrdersTable.tsx` | Async Server Components read the POs from `lib/orders.ts`. No client-side fetching; the data is in the HTML. |
+| Dynamic route | `app/orders/[poNumber]/page.tsx` → `components/OrderDetail.tsx` | One PO: header, addresses, every line item with SKU, UPC and totals. Unknown PO numbers call `notFound()` and return a real 404. |
+| Server action | `app/actions.ts` | `toggleReviewStatus` moves a PO between **Pending review** and **Approved**. It checks the PO exists, saves the change, and revalidates the list and the detail page. |
+| README | this file | How to run, what the action and route do, assumptions, time spent. |
 
-Also included:
+## Beyond the brief
 
-- **Dashboard view.** Stat cards (pending, approved, total on order, next to ship) and status tabs that filter the list through the URL (`/?status=pending`).
-- **Process flow.** Each PO shows Received → Parsed and checked → Review → Ready for downstream, with the current step highlighted.
-- **Loading only what changes.** The list page has two `<Suspense>` boundaries. The summary (stat cards, tab counts) doesn't depend on the filter, so it stays on screen when you switch tabs. Only the table, keyed by the filter, reloads. The clicked tab highlights immediately (`useOptimistic` + `router.push` in one transition) with a small spinner until the new rows arrive. Both parts read the data through React's `cache()`, so one request reads it once.
-- **Loading states.** On first load the heading renders at once and each part streams in behind its own animated skeleton. The Approve button shows a spinner while the action runs; the rest of the page stays as it is and updates in place when the action revalidates.
-- **Errors with codes.** Every error a person can see has a code and a plain message (`lib/errors.ts`), e.g. *PO-404 PO not found* or *PO-501 Status not saved*. There are three error boundaries: the whole app (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
-- A check on the detail page that the line items add up to the PO total.
+Everything below is extra. The brief's five requirements are complete without it.
+
+- **Animated review flow.** `components/ReviewPanel.tsx` uses `useOptimistic`, so clicking Approve updates the badge, the button and the step tracker immediately. The connector line fills in and the check mark pops while the action runs. If saving fails, React restores the old status and the error appears under the button.
+- **Dashboard.** Stat cards (pending, approved, total on order, next to ship) and status tabs that filter through the URL (`/?status=pending`).
+- **Only what changes reloads.** The list page has two `<Suspense>` parts. The summary doesn't depend on the filter, so it stays on screen when you switch tabs; only the table (keyed by the filter) reloads. The clicked tab highlights immediately with a small spinner. React's `cache()` makes both parts share one data read per request.
+- **Loading states.** The heading renders at once and each part streams in behind an animated skeleton (`components/Skeletons.tsx`).
+- **Errors with codes.** Every error a person can see has a code and a plain message in `lib/errors.ts`, e.g. *PO-404 PO not found*, *PO-501 Status not saved*. Three error boundaries: the root layout (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
+- **Design system.** Shared tokens and five small UI pieces (below).
+- **Tests and CI.** Vitest, Playwright on desktop and phone, and a GitHub Actions workflow.
+
+## Design system
+
+The look is a plain product dashboard: white cards, hairline borders, IBM Plex Sans, and IBM Plex Mono for codes (PO numbers, SKUs, UPCs). The one accent is the slate blue from Britannica Home Fashions' site, britannicahome.com.
+
+![Color tokens](../docs/screenshots/palette.png)
+
+All colors are `@theme` tokens in `app/globals.css`, so Tailwind classes like `text-muted` or `bg-pending-bg` use them. The image above is generated from those tokens by `npm run screenshots`.
+
+| Text on background | Contrast (WCAG AA needs 4.5) |
+|---|---|
+| ink on white | 15.8 |
+| muted on white / on subtle | 5.4 / 5.1 |
+| accent on white, white on accent | 8.4 |
+| pending on pending-bg | 5.8 |
+| approved on approved-bg | 5.6 |
+| danger on white / on danger-bg | 6.6 / 5.7 |
+
+UI pieces in `components/ui/`, used everywhere instead of one-off styles:
+
+| Piece | Used for |
+|---|---|
+| `Button`, `buttonClass`, `linkClass` | Approve / Move back, Try again, text links. 44 px tall, visible focus ring. |
+| `Badge` | Status pills. Tones: pending, approved, danger, neutral. Color changes fade. |
+| `Card` | Stat cards, order details, address blocks. |
+| `Th`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. |
+| `Spinner` | Button and tab loading indicators. |
+
+Motion is short (200–500 ms) and every animation is wrapped in `motion-safe:`, so it is off for people who ask their system for reduced motion.
+
+**Measured** with Lighthouse on the production build: `/` scores Performance 98, Accessibility 100, Best Practices 100; `/orders/TX9K2QP` scores 97, 100, 100. First Load JS is about 120 kB per page, most of it Next.js and React themselves.
 
 ## File map
 
 ```
 app/
   layout.tsx                    fonts, header
+  globals.css                   color, font and motion tokens
   page.tsx                      list page: heading + two <Suspense> parts
   actions.ts                    "use server" toggleReviewStatus
   error.tsx, global-error.tsx   error boundaries
@@ -62,22 +102,22 @@ app/
     not-found.tsx               PO-404
     error.tsx                   PO-500
 components/
+  ui/                           Button, Badge, Card, Th/Td, Spinner
   OrdersSummary.tsx             stat cards + tab counts (server)
   OrdersTable.tsx               rows for the current filter (server)
-  StatusTabs.tsx                tabs, instant highlight (client)
-  OrderDetail.tsx               flow, stats, line items, details (server)
+  StatusTabs.tsx                tabs with instant highlight (client)
+  OrderDetail.tsx               stats, details, line items (server)
+  ReviewPanel.tsx               title, badge, button, step tracker (client, optimistic)
   ProcessSteps.tsx              Received → … → Ready for downstream
   Skeletons.tsx                 loading placeholders
-  StatCard.tsx, StatusBadge.tsx
-  ToggleStatusButton.tsx        form + pending state (client)
-  ErrorState.tsx                shared error body (client)
+  StatCard.tsx, StatusBadge.tsx, ErrorState.tsx
 lib/
   types.ts                      Order, LineItem, ReviewStatus
   orders.ts                     the only module that reads or changes data
   errors.ts                     error codes and messages
   format.ts                     money, dates, totals
 data/orders.json                seed data
-e2e/orders.spec.ts              Playwright tests
+e2e/                            Playwright tests and the screenshot script
 ```
 
 ## Data
@@ -93,21 +133,19 @@ e2e/orders.spec.ts              Playwright tests
 - **Pages render on every request** (`dynamic = "force-dynamic"`) because status changes at runtime. Without it, Next prerenders `/` at build time and the new status would not show.
 - **No authentication.** Anyone who can open the app can approve a PO.
 - **The action is a toggle** on the whole PO. Approving individual lines was out of scope.
-- **Light theme only**, matching BHF's site.
-- **Skeletons use `<Suspense>`, not `loading.tsx`.** A `loading.tsx` streams the response with status 200 before the page runs, which turned the unknown-PO page into a 200 instead of a 404 (the e2e test caught this). The detail page checks the PO exists before anything streams.
-- **Simulated latency is off by default.** The data is in memory, so skeletons only flash; `npm run dev:slow` makes them visible.
+- **Light theme only.**
+- **Skeletons use `<Suspense>`, not `loading.tsx`.** A `loading.tsx` streams the response with status 200 before the page runs, which turned the unknown-PO page into a 200 instead of a 404 (an e2e test caught this). The detail page checks the PO exists before anything streams.
+- **Two test-only switches** in `lib/orders.ts`, both off by default: `SIMULATED_LATENCY_MS` (used by `npm run dev:slow`) and `FAIL_PO` (Playwright sets it so one PO fails to load and the error boundary can be tested).
 
 ## Tests
 
-- **Unit (Vitest, 10 tests):** order lookup and sort order, unknown PO, toggle both ways, toggle affects only one PO, unknown PO toggle throws and changes nothing, every PO's lines add up to its total, money/date formatting.
-- **End to end (Playwright, desktop and a 375px phone):** raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; status tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; no sideways page scroll.
-- **Error boundaries** were checked by hand: throwing inside `OrderDetail` shows *PO-500 This purchase order could not load* with a reference, Try again and a link back.
+- **Unit (Vitest, 10 tests):** order lookup and sort order, unknown PO, toggle both ways, toggle affects only one PO, unknown PO toggle rejects and changes nothing, every PO's lines add up to its total, money and date formatting.
+- **End to end (Playwright, 9 tests × desktop and 375 px phone):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; the step tracker moves to "Can be sent on" and back; tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
 
 ## With more time
 
 - Persist status in SQLite or Postgres, and record who approved and when.
-- Filter the list by status with `searchParams`; search by PO # or vendor.
-- Optimistic status update with `useOptimistic`.
+- Search by PO number or vendor.
 - Show the Python validation flags on the detail page.
 - Sign-in, so approvals are tied to a person.
 

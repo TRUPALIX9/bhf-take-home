@@ -58,6 +58,19 @@ test.describe("review status", () => {
     await page.getByRole("button", { name: "Move back to review" }).click();
     await expect(status).toHaveText("Pending review");
   });
+
+  test("approving updates the step tracker", async ({ page }) => {
+    await page.goto("/orders/TX9K4MB");
+    const review = page.getByRole("listitem").filter({ hasText: "Review" }).first();
+    await expect(review).toHaveAttribute("aria-current", "step");
+
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect(page.getByText("Can be sent on")).toBeVisible();
+    await expect(review).not.toHaveAttribute("aria-current", "step");
+
+    await page.getByRole("button", { name: "Move back to review" }).click();
+    await expect(page.getByText("Waiting for approval")).toBeVisible();
+  });
 });
 
 test("unknown PO shows the not-found page", async ({ page }) => {
@@ -84,4 +97,14 @@ test("status tabs filter the list", async ({ page }) => {
 test("unknown PO page shows its error code", async ({ page }) => {
   await page.goto("/orders/NOPE");
   await expect(page.getByText("Error PO-404")).toBeVisible();
+});
+
+test("a PO that fails to load shows the error boundary, not a crash", async ({ page }) => {
+  // playwright.config.ts starts the server with FAIL_PO=TX9K5DC.
+  await page.goto("/orders/TX9K5DC");
+  await expect(page.getByText("Error PO-500")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "This purchase order could not load" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Back to purchase orders" }).click();
+  await expect(page.getByRole("heading", { name: "Purchase orders" })).toBeVisible();
 });

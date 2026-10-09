@@ -19,5 +19,7 @@ export default defineConfig({
     url: `http://localhost:${port}`,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
+    // Makes one PO fail to load, so the error boundary can be tested.
+    env: { FAIL_PO: "TX9K5DC" },
   },
 });

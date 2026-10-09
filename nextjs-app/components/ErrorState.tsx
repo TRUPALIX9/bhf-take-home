@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { Button, linkClass } from "@/components/ui/Button";
 import type { AppError } from "@/lib/errors";
 
 /**
@@ -31,13 +32,8 @@ export function ErrorState({
         <p className="font-mono text-xs text-muted">Reference {error.digest}</p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-4">
-        <button
-          onClick={reset}
-          className="min-h-11 rounded-md bg-accent px-5 font-medium text-white hover:bg-accent-dark"
-        >
-          Try again
-        </button>
-        <Link href="/" className="font-medium text-accent hover:underline">
+        <Button onClick={reset}>Try again</Button>
+        <Link href="/" className={linkClass}>
           Back to purchase orders
         </Link>
       </div>
