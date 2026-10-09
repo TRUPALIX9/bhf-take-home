@@ -9,6 +9,7 @@ next-env.d.ts
 # Python
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 .venv/
 
 # Claude Code (personal files only; .claude/agents and .claude/skills are committed)
