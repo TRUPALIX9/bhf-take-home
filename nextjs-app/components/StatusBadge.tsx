@@ -10,7 +10,7 @@ export function StatusBadge({ status }: { status: ReviewStatus }) {
   return (
     <span
       data-testid="status"
-      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${className}`}
+      className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${className}`}
     >
       <span aria-hidden className="size-1.5 rounded-full bg-current" />
       {label}

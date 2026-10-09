@@ -8,16 +8,20 @@ A reviewer opens a list of purchase orders, opens one to see its line items, and
 
 ```mermaid
 graph TD
-  List["app/page.tsx<br/>list (server)"] --> Badge[components/StatusBadge]
-  Detail["app/orders/[poNumber]/page.tsx<br/>detail (server)"] --> Badge
-  Detail --> Toggle["components/ToggleStatusButton<br/>(client)"]
+  List["app/page.tsx<br/>heading + 2 Suspense parts"] --> Summary["OrdersSummary<br/>stats + counts (server)"]
+  List --> Table["OrdersTable<br/>rows for filter (server)"]
+  Summary --> Tabs["StatusTabs (client)<br/>instant highlight"]
+  Detail["orders/[poNumber]/page.tsx<br/>404 check + Suspense"] --> OD["OrderDetail (server)"]
+  OD --> Steps[ProcessSteps]
+  OD --> Toggle["ToggleStatusButton (client)"]
   Toggle --> Action["app/actions.ts<br/>toggleReviewStatus"]
-  Action --> Orders["lib/orders.ts<br/>server-only"]
-  List --> Orders
+  Action --> Orders["lib/orders.ts<br/>server-only, cache()"]
+  Summary --> Orders
+  Table --> Orders
+  OD --> Orders
   Detail --> Orders
-  List --> Format[lib/format.ts]
-  Detail --> Format
-  Orders --> Types[lib/types.ts]
+  Action --> Errors[lib/errors.ts]
+  Boundaries["error.tsx / global-error.tsx /<br/>orders/[poNumber]/error.tsx"] --> Errors
   Orders --> Seed[data/orders.json]
 ```
 
@@ -45,8 +49,10 @@ sequenceDiagram
 | Where status lives | In-memory `Map` on `globalThis`, seeded from JSON | No dependencies, works on Vercel's read-only filesystem. Resets on restart (stated in README). |
 | Rendering | `dynamic = "force-dynamic"` on both pages | Status changes at runtime; a prerendered page would show stale status. |
 | Data access | Only `lib/orders.ts` touches data | Swapping in a database later is a one-file change. |
-| Client code | One client component (the toggle button) | Everything else stays on the server. |
-| No `loading.tsx` | Removed | Data comes from memory, so it never shows, and it made unknown POs return 200 instead of 404. |
+| Client code | Toggle button, status tabs, error state | Everything else stays on the server. |
+| Partial reloads | Summary and table are separate `<Suspense>` parts; only the table is keyed by filter | Switching tabs reloads only the rows. `cache()` makes both parts share one data read. |
+| Errors | Codes and messages in `lib/errors.ts`; three error boundaries | A person sees a plain message and a code to quote; the action returns errors instead of throwing. |
+| No `loading.tsx` | Skeletons come from `<Suspense>` inside the page | `loading.tsx` streamed a 200 before `notFound()` ran, so unknown POs lost their 404. |
 
 ## Part B: python-po-parser
 

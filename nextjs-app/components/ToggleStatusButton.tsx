@@ -20,22 +20,28 @@ export function ToggleStatusButton({
   const label = approve ? "Approve" : "Move back to review";
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-2">
+    <form action={formAction} className="flex flex-col items-end gap-2">
       <input type="hidden" name="poNumber" value={poNumber} />
       <button
         type="submit"
         disabled={isPending}
-        className={`min-h-11 rounded px-5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
+        className={`inline-flex min-h-11 items-center gap-2 rounded-md px-5 font-medium transition-colors disabled:cursor-wait ${
           approve
-            ? "bg-accent text-white hover:bg-accent-dark"
+            ? "bg-accent text-white hover:bg-accent-dark disabled:bg-accent/80"
             : "border border-line-strong bg-white text-ink hover:bg-subtle"
         }`}
       >
+        {isPending && (
+          <span
+            aria-hidden
+            className="size-4 rounded-full border-2 border-current border-r-transparent motion-safe:animate-spin"
+          />
+        )}
         {isPending ? "Saving…" : label}
       </button>
-      {state.error && (
-        <p role="alert" className="text-sm text-danger">
-          {state.error}
+      {state.error && !isPending && (
+        <p role="alert" className="max-w-xs text-right text-danger">
+          {state.error.message} <span className="font-mono text-xs">({state.error.code})</span>
         </p>
       )}
     </form>

@@ -1,13 +1,15 @@
 import Link from "next/link";
+import { appErrors } from "@/lib/errors";
 
 export default function OrderNotFound() {
+  const { code, title, message } = appErrors.poNotFound;
   return (
-    <div className="flex flex-col items-start gap-3">
-      <span className="label">404</span>
-      <h1 className="font-display text-4xl font-semibold">PO not found</h1>
-      <p className="text-muted">There is no purchase order with that number. Check the PO # and try again.</p>
-      <Link href="/" className="text-accent underline-offset-4 hover:underline">
-        ← All purchase orders
+    <div className="flex flex-col items-start gap-2 py-10">
+      <p className="font-mono text-xs text-muted">Error {code}</p>
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <p className="text-muted">{message}</p>
+      <Link href="/" className="mt-2 font-medium text-accent hover:underline">
+        Back to purchase orders
       </Link>
     </div>
   );

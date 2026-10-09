@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bodoni_Moda, IBM_Plex_Mono, Montserrat } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
-const bodoni = Bodoni_Moda({ variable: "--font-bodoni", subsets: ["latin"], weight: ["500", "600"] });
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-plex-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
 });
@@ -22,17 +21,24 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${bodoni.variable} ${montserrat.variable} ${plexMono.variable}`}>
-      <body className="font-sans antialiased">
+    <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
+      <body className="font-sans text-sm antialiased">
         <header className="border-b border-line">
-          <div className="mx-auto flex max-w-6xl items-baseline gap-3 px-4 py-4 sm:px-6">
-            <Link href="/" className="font-display text-2xl font-semibold tracking-wide text-ink">
+          <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
+              <span
+                aria-hidden
+                className="grid size-7 place-items-center rounded bg-accent text-xs font-semibold text-white"
+              >
+                B
+              </span>
               BHF
             </Link>
-            <span className="label">PO Review</span>
+            <span className="h-5 w-px bg-line" aria-hidden />
+            <span className="text-muted">Purchase order review</span>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
       </body>
     </html>
   );

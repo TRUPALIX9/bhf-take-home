@@ -1,10 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Number of approved POs shown in the list summary ("2 of 4 approved"). */
+/** The "Approved" number in the list page's stat row. */
 async function approvedCount(page: Page): Promise<number> {
   await page.goto("/");
-  const text = await page.getByTestId("summary").innerText();
-  return Number(text.split(" of ")[0]);
+  return Number(await page.getByTestId("approved-count").innerText());
 }
 
 test("list is rendered on the server", async ({ request }) => {
@@ -72,5 +71,17 @@ test("page never scrolls sideways", async ({ page }) => {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
-  expect(overflow).toBe(0);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("status tabs filter the list", async ({ page }) => {
+  await page.goto("/?status=approved");
+  const rows = page.locator("table tbody tr, ul li").filter({ visible: true });
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("TX9K3RA");
+});
+
+test("unknown PO page shows its error code", async ({ page }) => {
+  await page.goto("/orders/NOPE");
+  await expect(page.getByText("Error PO-404")).toBeVisible();
 });

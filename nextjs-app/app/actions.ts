@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getOrder, toggleStatus } from "@/lib/orders";
+import { appErrors, type AppError } from "@/lib/errors";
+import { orderExists, toggleStatus } from "@/lib/orders";
 
-export type ToggleState = { error?: string };
+export type ToggleState = { error?: AppError };
 
 /** Approves a pending PO, or moves an approved one back to review. */
 export async function toggleReviewStatus(
@@ -11,11 +12,15 @@ export async function toggleReviewStatus(
   formData: FormData,
 ): Promise<ToggleState> {
   const poNumber = String(formData.get("poNumber") ?? "");
-  if (!getOrder(poNumber)) {
-    return { error: `PO ${poNumber || "(blank)"} was not found.` };
+  if (!orderExists(poNumber)) return { error: appErrors.poNotFound };
+
+  try {
+    await toggleStatus(poNumber);
+  } catch (err) {
+    console.error(`[${appErrors.statusNotSaved.code}] PO ${poNumber}`, err);
+    return { error: appErrors.statusNotSaved };
   }
 
-  toggleStatus(poNumber);
   revalidatePath("/");
   revalidatePath(`/orders/${poNumber}`);
   return {};

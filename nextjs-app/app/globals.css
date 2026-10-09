@@ -1,23 +1,28 @@
 @import "tailwindcss";
 
-/* Palette and type follow britannicahome.com: black and white with one slate-blue accent. */
+/* Product UI: white surfaces, grey hairlines, BHF's slate blue (britannicahome.com) as the one accent. */
 @theme {
-  --color-ink: #222222;
+  --color-ink: #1b2330;
   --color-muted: #5d6c7b;
-  --color-line: #e4ebf3;
+  --color-line: #e4e9ef;
   --color-line-strong: #c7cfd5;
-  --color-subtle: #f5f7fa;
+  --color-subtle: #f6f8fa;
   --color-accent: #154b98;
   --color-accent-dark: #0f3a78;
+  --color-accent-soft: #eaf0f9;
   --color-pending: #8a5300;
   --color-pending-bg: #fdf3e1;
   --color-approved: #1f6b45;
   --color-approved-bg: #e4f3ea;
   --color-danger: #b42318;
 
-  --font-display: var(--font-bodoni), Didot, "Times New Roman", serif;
-  --font-sans: var(--font-montserrat), "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-plex-sans), "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
+}
+
+html {
+  /* Keep the scrollbar space so the layout doesn't jump when a list gets shorter. */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -30,15 +35,7 @@ body {
   outline-offset: 2px;
 }
 
+/* Numbers line up in columns. */
 .num {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-}
-
-.label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
 }

@@ -23,24 +23,26 @@ npx create-next-app@15 . --ts --tailwind --eslint --app --no-src-dir --turbopack
 
 ## State
 
-Review status lives in a `Map` on `globalThis` (survives dev hot reload, resets on server restart). This is a stated assumption in the README, not a bug.
+Data access is async (`await getOrders()`), like a database call. Review status lives in a `Map` on `globalThis` (survives dev hot reload, resets on server restart). This is a stated assumption in the README, not a bug.
 
-## UI (follows Britannica Home Fashions' own site, britannicahome.com)
+## UI
 
-- Fonts via `next/font/google`, replacing the scaffold's Geist:
-  - Bodoni Moda (500/600): wordmark and page titles only. BHF uses it for its display headings.
-  - Montserrat (400/500/600): all UI text and uppercase labels. Free stand-in for Gotham, BHF's label face.
-  - IBM Plex Mono (400/500): PO#, SKU, UPC and money.
-- All numbers use `tabular-nums` and are right-aligned in tables. Money: `Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })`; unit cost keeps 3 decimals.
-- Colors are CSS variables in `globals.css`, exposed to Tailwind with `@theme`. Black-and-white base like BHF's site, with their slate blue as the one accent:
-  bg `#FFFFFF`, subtle `#F5F7FA`, ink `#222222`, muted `#5D6C7B`, line `#E4EBF3`, accent `#154B98`;
-  Pending `#8A5300` on `#FDF3E1`, Approved `#1F6B45` on `#E4F3EA`. Every text pair is at least 4.5:1.
-- Wordmark is plain text ("BHF" in Bodoni Moda + "PO Review"). Do not copy BHF's logo file.
-- Seed POs use made-up brand names (like NORDPEAK in the sample), never BHF's real licensed brands.
-- Type scale: 12 / 14 / 16 / 20 / 28 / 36 px. Spacing on a 4px grid. Radius 4px on tables, full on status pills. Uppercase labels get 0.08em letter-spacing.
-- Light theme only. No gradients, emoji or decorative icons.
-- Must work at 375px wide. On small screens the list becomes stacked rows, and the line-item table scrolls inside its own container.
-- Buttons are at least 44px tall, show a visible focus ring, and say what they do ("Approve", "Move back to review").
+- Product dashboard style: white surfaces, grey hairline borders, sentence-case labels, no decorative type. The one accent is BHF's slate blue from britannicahome.com.
+- Fonts via `next/font/google`: IBM Plex Sans (400/500/600) for everything, IBM Plex Mono (400/500) for PO numbers, SKUs, UPCs and vendor part numbers.
+- Base text 14px. Scale: 12 / 14 / 16 / 24 px. Spacing on a 4px grid. Radius 6–8px on cards, full on pills.
+- Colors are `@theme` tokens in `globals.css`: ink `#1B2330`, muted `#5D6C7B`, line `#E4E9EF`, subtle `#F6F8FA`, accent `#154B98`; Pending `#8A5300` on `#FDF3E1`, Approved `#1F6B45` on `#E4F3EA`, danger `#B42318`. Every text pair is at least 4.5:1.
+- Numbers use `tabular-nums` and are right-aligned in tables. Money via `Intl.NumberFormat`; unit cost keeps 3 decimals.
+- Wordmark is text ("BHF" with a "B" tile). Do not copy BHF's logo. Seed POs use made-up brands.
+- Must work at 375px wide: stat cards go 2-up, the list becomes stacked rows, the line-item table scrolls in its own box.
+- Buttons are at least 44px tall, have a visible focus ring, and say what they do.
+
+## Loading, errors and flow
+
+- Pages render their heading at once and wrap the data part in `<Suspense>` with a skeleton from `components/Skeletons.tsx`. No `loading.tsx`: it would stream a 200 before `notFound()` runs. The detail page calls `orderExists()` before any streaming for that reason.
+- `npm run dev:slow` sets `SIMULATED_LATENCY_MS=1200` so skeletons and the button spinner are visible.
+- Every user-facing error has a code and a plain message in `lib/errors.ts` (PO-404, PO-500, PO-501, APP-500, APP-503). Boundaries: `app/global-error.tsx` (root layout), `app/error.tsx` (any page), `app/orders/[poNumber]/error.tsx` (one PO). All use `components/ErrorState.tsx`, which logs the error and shows the code and Next's digest.
+- The server action never throws to the client: it returns `{ error: AppError }`, shown under the button.
+- `components/ProcessSteps.tsx` shows where a PO is: Received → Parsed and checked → Review → Ready for downstream. The current step pulses (only when motion is allowed).
 
 ## Quality bar (check before submitting)
 
