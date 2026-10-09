@@ -1,4 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Number of approved POs shown in the list summary ("2 of 4 approved"). */
+async function approvedCount(page: Page): Promise<number> {
+  await page.goto("/");
+  const text = await page.getByTestId("summary").innerText();
+  return Number(text.split(" of ")[0]);
+}
 
 test("list is rendered on the server", async ({ request }) => {
   // The raw HTML, before any JavaScript runs, already contains the data.
@@ -17,24 +24,41 @@ test("open a PO from the list and see its line items", async ({ page }) => {
   await expect(page.getByTestId("lines-total")).toHaveText("$447,455.12");
 });
 
-test("approve a PO, then move it back to review", async ({ page }) => {
-  await page.goto("/orders/TX9K4MB");
-  const status = page.getByTestId("status");
-  await expect(status).toHaveText("Pending review");
+test.describe("review status", () => {
+  const po = "/orders/TX9K4MB";
 
-  await page.getByRole("button", { name: "Approve" }).click();
-  await expect(status).toHaveText("Approved");
+  // The server keeps status in memory, so always leave this PO pending,
+  // even if a test fails half way.
+  const resetToPending = async ({ page }: { page: Page }) => {
+    await page.goto(po);
+    const moveBack = page.getByRole("button", { name: "Move back to review" });
+    if (await moveBack.isVisible()) {
+      await moveBack.click();
+      await expect(page.getByTestId("status")).toHaveText("Pending review");
+    }
+  };
+  test.beforeEach(resetToPending);
+  test.afterEach(resetToPending);
 
-  // The change is stored on the server, so it survives a reload and shows on the list.
-  await page.reload();
-  await expect(status).toHaveText("Approved");
-  await page.goto("/");
-  await expect(page.getByTestId("summary")).toContainText("2 of 4 approved");
+  test("approve a PO, then move it back to review", async ({ page }) => {
+    const before = await approvedCount(page);
 
-  // Put it back so the tests can run again against the same server.
-  await page.goto("/orders/TX9K4MB");
-  await page.getByRole("button", { name: "Move back to review" }).click();
-  await expect(status).toHaveText("Pending review");
+    await page.goto(po);
+    const status = page.getByTestId("status");
+    await expect(status).toHaveText("Pending review");
+
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect(status).toHaveText("Approved");
+
+    // Stored on the server: survives a reload and shows on the list.
+    await page.reload();
+    await expect(status).toHaveText("Approved");
+    expect(await approvedCount(page)).toBe(before + 1);
+
+    await page.goto(po);
+    await page.getByRole("button", { name: "Move back to review" }).click();
+    await expect(status).toHaveText("Pending review");
+  });
 });
 
 test("unknown PO shows the not-found page", async ({ page }) => {

@@ -187,12 +187,21 @@ def read_side_by_side_blocks(
 
 
 def parse_items(lines: list[str]) -> tuple[LineItem, ...]:
-    """Every item row, each paired with the UPC on the line below it."""
+    """Every item row in the table, each paired with the UPC on the line below it.
+
+    Any non-blank line between the column headings and TOTALS that is not an
+    item row raises, so a row the regex can't read is never dropped silently.
+    """
+    index = find_block_start(lines, "DPT") + 2  # skip the headings and dashes
     items = []
-    for index, line in enumerate(lines):
+    while index < len(lines) and not lines[index].startswith("TOTALS:"):
+        line = lines[index]
+        if not line.strip():
+            index += 1
+            continue
         match = ITEM_RE.match(line)
         if not match:
-            continue
+            raise ValueError(f"line {index + 1} is not an item row: {line.strip()!r}")
         next_line = lines[index + 1] if index + 1 < len(lines) else ""
         upc_match = UPC_RE.match(next_line)
         if not upc_match:
@@ -214,6 +223,7 @@ def parse_items(lines: list[str]) -> tuple[LineItem, ...]:
                 kilograms=Decimal(match["kilograms"]),
             )
         )
+        index += 2  # the item row and its UPC line
     return tuple(items)
 
 

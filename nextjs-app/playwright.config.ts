@@ -7,10 +7,12 @@ export default defineConfig({
   // Tests share one server and its in-memory status, so run them in order.
   workers: 1,
   fullyParallel: false,
-  use: { baseURL: `http://localhost:${port}` },
+  // PW_CHANNEL=chrome uses the installed Google Chrome instead of the downloaded Chromium.
+  use: { baseURL: `http://localhost:${port}`, channel: process.env.PW_CHANNEL },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // Phone width from the UI spec: 375px.
+    { name: "mobile", use: { ...devices["Pixel 7"], viewport: { width: 375, height: 812 } } },
   ],
   webServer: {
     command: `npm run build && npm run start -- --port ${port}`,

@@ -11,7 +11,7 @@ if [ -f "$root/nextjs-app/package.json" ]; then
   step "next: typecheck"; npx tsc --noEmit
   step "next: test";      npm test --silent
   step "next: build";     npm run --silent build
-  step "next: e2e";       npm run --silent test:e2e
+  step "next: e2e";       npm run --silent test:e2e  # set PW_CHANNEL=chrome to use installed Chrome
 fi
 
 if [ -f "$root/python-po-parser/po_extract.py" ]; then

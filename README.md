@@ -2,8 +2,8 @@
 
 | Part | Folder | Status |
 |---|---|---|
-| Next.js assessment (required) | [`nextjs-app/`](nextjs-app/README.md) | In progress |
-| Python assessment (optional) | [`python-po-parser/`](python-po-parser/README.md) | In progress |
+| Next.js assessment (required) | [`nextjs-app/`](nextjs-app/README.md) | Done |
+| Python assessment (optional) | [`python-po-parser/`](python-po-parser/README.md) | Done |
 
 Both parts use purchase orders as their subject. The Next.js app reviews POs; the Python script turns a vendor PO into a spreadsheet. The folders are independent and each has its own README.
 

@@ -98,6 +98,13 @@ def test_missing_upc_raises_naming_the_sku():
         pe.parse(text)
 
 
+def test_unreadable_item_row_raises_instead_of_being_dropped():
+    # A row with a missing number no longer matches the item regex.
+    text = SAMPLE.read_text(encoding="utf-8").replace("  68     2      136", "  68     2")
+    with pytest.raises(ValueError, match="line 25 is not an item row"):
+        pe.parse(text)
+
+
 # ---------------------------------------------------------------- validate
 
 

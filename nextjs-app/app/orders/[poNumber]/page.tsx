@@ -72,8 +72,8 @@ export default async function OrderPage({ params }: Props) {
         {addresses.map(([label, lines]) => (
           <address key={label} className="flex flex-col gap-1 text-sm not-italic">
             <span className="label mb-1">{label}</span>
-            {lines.map((line) => (
-              <span key={line}>{line}</span>
+            {lines.map((line, i) => (
+              <span key={i}>{line}</span>
             ))}
           </address>
         ))}
@@ -91,7 +91,7 @@ export default async function OrderPage({ params }: Props) {
           </p>
         </div>
 
-        <div className="overflow-x-auto rounded border border-line" tabIndex={0} aria-label="Line items, scrolls sideways">
+        <div className="overflow-x-auto rounded border border-line" role="region" tabIndex={0} aria-label="Line items, scrolls sideways">
           <table className="w-full min-w-[60rem] text-sm">
             <thead className="bg-subtle text-left">
               <tr>

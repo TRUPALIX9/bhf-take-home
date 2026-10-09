@@ -29,6 +29,10 @@ sequenceDiagram
   participant A as actions.ts
   participant O as lib/orders.ts
   B->>A: submit form (poNumber)
+  A->>O: getOrder(poNumber)
+  alt unknown PO
+    A-->>B: { error } shown under the button
+  end
   A->>O: toggleStatus(poNumber)
   O-->>A: new status
   A->>A: revalidatePath("/"), revalidatePath("/orders/[po]")
@@ -42,6 +46,7 @@ sequenceDiagram
 | Rendering | `dynamic = "force-dynamic"` on both pages | Status changes at runtime; a prerendered page would show stale status. |
 | Data access | Only `lib/orders.ts` touches data | Swapping in a database later is a one-file change. |
 | Client code | One client component (the toggle button) | Everything else stays on the server. |
+| No `loading.tsx` | Removed | Data comes from memory, so it never shows, and it made unknown POs return 200 instead of 404. |
 
 ## Part B: python-po-parser
 
@@ -55,11 +60,14 @@ graph LR
   write --> model
   write --> validate
   write --> openpyxl
+  main -. "--json" .-> json[TX9K2QP.json]
+  json -. copied once .-> seed[nextjs-app/data/orders.json]
 ```
 
 | Decision | Choice | Why |
 |---|---|---|
 | Item rows | One anchored regex with named groups | Descriptions contain spaces and numbers are right-aligned; slicing by column is more fragile. |
+| Unreadable rows | Any non-blank line in the table that is not an item raises with its line number | A row the regex can't read is never dropped silently. |
 | UPC | Must be the next line (`^ {4}\d{12,14}$`), else raise | The UPC belongs to the row above; a missing one is an error, not a skip. |
 | SHIP TO / BILL TO | Split each line at the column where "BILL TO" starts | The two blocks sit side by side. |
 | IDs | Strings with Excel `@` format | Keeps leading zeros in UPC and Vendor Part #. |

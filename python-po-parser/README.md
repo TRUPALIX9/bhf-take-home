@@ -22,7 +22,7 @@ Options: `--input`, `--template` and `--output` (defaults are the files above, r
 
 ## Approach
 
-One module, four sections, in order:
+One module, five sections, in order:
 
 1. **Model.** Frozen dataclasses: `Header`, `LineItem`, `Totals`, `PurchaseOrder`, and `Flag`. Money and measurements are `Decimal`, so the checks compare exact values with no float noise.
 2. **Parse.** All regexes are named constants at the top of the file.
@@ -31,6 +31,7 @@ One module, four sections, in order:
    - `SHIP TO` and `BILL TO` sit side by side, so each line is split at the column where the `BILL TO` heading starts.
    - Item rows are matched by one anchored regex with named groups. The description is lazy, so it stops before the first number. This is safer than slicing by column, because the descriptions contain spaces and the numbers are right-aligned.
    - The UPC must be on the very next line (`^ {4}\d{12,14}$`). If it is missing, parsing raises `ValueError` naming the SKU.
+   - Any other non-blank line between the column headings and `TOTALS:` raises `ValueError` with its line number, so a row the regex cannot read is never dropped silently.
    - The `TOTALS:` numbers are not aligned under their columns, so they are read in order.
 3. **Validate.** Recompute and compare (see below).
 4. **Write.** Load the template with `openpyxl.load_workbook`, read its header row, and for each item build a dict of *template column name -> value*. Each cell is written in the template's column order. A template column with no mapping raises instead of being skipped. Decimals are written as floats; ID columns are written as text with the `@` format.

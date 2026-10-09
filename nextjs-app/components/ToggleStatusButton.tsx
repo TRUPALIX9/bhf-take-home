@@ -13,7 +13,7 @@ export function ToggleStatusButton({
 }) {
   const [state, formAction, isPending] = useActionState<ToggleState, FormData>(
     toggleReviewStatus,
-    { status },
+    {},
   );
 
   const approve = status === "pending";

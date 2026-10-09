@@ -25,7 +25,7 @@ Checks:
 npm run lint
 npx tsc --noEmit
 npm test             # Vitest unit tests for lib/
-npx playwright install chromium   # first time only
+npx playwright install chromium   # first time only (or set PW_CHANNEL=chrome to use installed Chrome)
 npm run test:e2e     # Playwright: builds, starts on :3100, runs desktop + mobile
 ```
 
@@ -39,7 +39,7 @@ npm run test:e2e     # Playwright: builds, starts on :3100, runs desktop + mobil
 | Server action | `app/actions.ts` | `toggleReviewStatus` moves a PO between **Pending review** and **Approved**. It checks the PO exists, updates it, and revalidates the list and detail pages so both show the new status. |
 | Pending state | `components/ToggleStatusButton.tsx` | The only client component. `useActionState` disables the button and shows "Saving…" while the action runs. |
 
-Also included: `loading.tsx` skeleton, `error.tsx` boundary, page titles per PO, and a check on the detail page that the line items add up to the PO total.
+Also included: an `error.tsx` boundary, page titles per PO, and a check on the detail page that the line items add up to the PO total.
 
 ## File map
 
@@ -50,7 +50,7 @@ app/
   actions.ts                    "use server" toggleReviewStatus
   orders/[poNumber]/page.tsx    PO detail (server)
   orders/[poNumber]/not-found.tsx
-  loading.tsx, error.tsx
+  error.tsx
 components/
   StatusBadge.tsx               Pending review / Approved pill
   ToggleStatusButton.tsx        form + pending state (client)
@@ -76,11 +76,12 @@ e2e/orders.spec.ts              Playwright tests
 - **No authentication.** Anyone who can open the app can approve a PO.
 - **The action is a toggle** on the whole PO. Approving individual lines was out of scope.
 - **Light theme only**, matching BHF's site.
+- **No `loading.tsx`.** The data is read from memory, so a skeleton would never show. A root `loading.tsx` also streams the response early with status 200, which turned the unknown-PO page into a 200 instead of a 404. The e2e test caught this.
 
 ## Tests
 
 - **Unit (Vitest, 10 tests):** order lookup and sort order, unknown PO, toggle both ways, toggle affects only one PO, unknown PO toggle throws and changes nothing, every PO's lines add up to its total, money/date formatting.
-- **End to end (Playwright, desktop and Pixel 7):** raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, list summary updates, then moves back; `/orders/NOPE` returns 404; no sideways page scroll.
+- **End to end (Playwright, desktop and a 375px phone):** raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, list summary updates, then moves back; `/orders/NOPE` returns 404; no sideways page scroll.
 
 ## With more time
 

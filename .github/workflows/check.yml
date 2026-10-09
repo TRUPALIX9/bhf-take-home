@@ -17,5 +17,5 @@ jobs:
         working-directory: nextjs-app
       - run: npx playwright install --with-deps chromium
         working-directory: nextjs-app
-      - run: pip install -r python-po-parser/requirements.txt
+      - run: pip install -r python-po-parser/requirements-dev.txt
       - run: scripts/check.sh

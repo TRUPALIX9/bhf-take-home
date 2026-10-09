@@ -13,7 +13,7 @@ Each folder has its own README and CLAUDE.md. The folders do not import from eac
 
 ## Rules
 
-- YAGNI. Build only what the brief asks for, but build it completely: tests, loading/error/404 states and docs are part of done. No auth, database, state library, component library, Docker, or generic "framework" code. Ideas go in the README under "With more time", not in code.
+- YAGNI. Build only what the brief asks for, but build it completely: tests, error and 404 states, and docs are part of done. No auth, database, state library, component library, Docker, or generic "framework" code. Ideas go in the README under "With more time", not in code.
 - Keep files small and named by what they do. Prefer one clear function over a class hierarchy.
 - No new dependencies without asking. Allowed: `next@15`, `react`, `tailwindcss`, `server-only`, `vitest` and `@playwright/test` (dev); `openpyxl`, `pytest`, `ruff` (dev).
 - Pin Next.js to 15.x. Never run `npm audit fix --force` (it upgrades to 16).
