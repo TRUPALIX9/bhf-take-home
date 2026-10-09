@@ -19,6 +19,7 @@ export async function OrdersTable({ filter }: { filter?: ReviewStatus }) {
     <div className="motion-safe:animate-fade-in">
       {/* Desktop: table */}
       <table className="hidden w-full md:table">
+        <caption className="sr-only">Purchase orders</caption>
         <thead>
           <tr className="border-b border-line">
             <Th>PO number</Th>

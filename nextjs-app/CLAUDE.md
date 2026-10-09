@@ -31,7 +31,7 @@ Data access is async (`await getOrders()`), like a database call. Review status 
 - Product dashboard style: white surfaces, grey hairline borders, sentence-case labels, no decorative type. The one accent is BHF's slate blue from britannicahome.com.
 - Fonts via `next/font/google`: IBM Plex Sans (400/500/600) for everything, IBM Plex Mono (400/500) for PO numbers, SKUs, UPCs and vendor part numbers.
 - Base text 14px. Scale: 12 / 14 / 16 / 24 px. Spacing on a 4px grid. Radius 6–8px on cards, full on pills.
-- Colors are `@theme` tokens in `globals.css`: ink `#1B2330`, muted `#5D6C7B`, line `#E4E9EF`, subtle `#F6F8FA`, accent `#154B98`; Pending `#8A5300` on `#FDF3E1`, Approved `#1F6B45` on `#E4F3EA`, danger `#B42318`. Every text pair is at least 4.5:1.
+- Colors are `@theme` tokens in `globals.css`: surface `#FFFFFF`, inverse `#FFFFFF` (text on filled colors), ink `#1B2330`, muted `#5D6C7B`, line `#E4E9EF`, subtle `#F6F8FA`, accent `#154B98`; Pending `#8A5300` on `#FDF3E1`, Approved `#1F6B45` on `#E4F3EA`, danger `#B42318`. No literal colors in components. Every text pair is at least 4.5:1.
 - Numbers use `tabular-nums` and are right-aligned in tables. Money via `Intl.NumberFormat`; unit cost keeps 3 decimals.
 - Wordmark is text ("BHF" with a "B" tile). Do not copy BHF's logo. Seed POs use made-up brands.
 - Must work at 375px wide: stat cards go 2-up, the list becomes stacked rows, the line-item table scrolls in its own box.
@@ -49,11 +49,11 @@ Data access is async (`await getOrders()`), like a database call. Review status 
 ## Quality bar (check before submitting)
 
 - Lighthouse on `npm run build && npm start`: Accessibility 100, Best Practices 100, Performance 90+. Last measured: `/` 98/100/100, `/orders/TX9K2QP` 97/100/100.
-- `next build` First Load JS stays near today's ~120 kB per page (Next and React are ~125 kB shared). Don't add client libraries without a reason.
+- `next build` reports about 120 kB First Load JS per route, almost all of it Next.js and React. Don't add client libraries without a reason.
 - No console errors or hydration warnings. Tab through the list and detail page with the keyboard only.
 
 ## Tests
 
 - Vitest: unit tests for `lib/` (`npm test`).
-- Playwright: end-to-end tests in `e2e/` against the production build (`npm run test:e2e`). They cover list → detail → approve → status persists on both pages → unknown PO shows 404, plus one run at 375px width.
+- Playwright: end-to-end tests in `e2e/` against the production build (`npm run test:e2e`). Every test runs twice: desktop Chrome and a 375px phone. They cover list → detail → approve → status persists on both pages → unknown PO shows 404 → a failing PO shows the error boundary.
 - The action stays a thin wrapper; Playwright covers it end to end.

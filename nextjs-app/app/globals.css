@@ -2,6 +2,8 @@
 
 /* Product UI: white surfaces, grey hairlines, BHF's slate blue (britannicahome.com) as the one accent. */
 @theme {
+  --color-surface: #ffffff;
+  --color-inverse: #ffffff; /* text on filled colors (accent, approved, danger) */
   --color-ink: #1b2330;
   --color-muted: #5d6c7b;
   --color-line: #e4e9ef;
@@ -15,7 +17,6 @@
   --color-approved: #1f6b45;
   --color-approved-bg: #e4f3ea;
   --color-danger: #b42318;
-  --color-danger-bg: #fdecea;
 
   --font-sans: var(--font-plex-sans), "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
@@ -40,7 +41,7 @@ html {
 }
 
 body {
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-ink);
 }
 

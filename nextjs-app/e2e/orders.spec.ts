@@ -33,7 +33,8 @@ test.describe("review status", () => {
     const moveBack = page.getByRole("button", { name: "Move back to review" });
     if (await moveBack.isVisible()) {
       await moveBack.click();
-      await expect(page.getByTestId("status")).toHaveText("Pending review");
+      // The badge changes at once (optimistic); the button label changes when the save is done.
+      await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
     }
   };
   test.beforeEach(resetToPending);
@@ -48,6 +49,7 @@ test.describe("review status", () => {
 
     await page.getByRole("button", { name: "Approve" }).click();
     await expect(status).toHaveText("Approved");
+    await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
 
     // Stored on the server: survives a reload and shows on the list.
     await page.reload();
@@ -66,6 +68,7 @@ test.describe("review status", () => {
 
     await page.getByRole("button", { name: "Approve" }).click();
     await expect(page.getByText("Can be sent on")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
     await expect(review).not.toHaveAttribute("aria-current", "step");
 
     await page.getByRole("button", { name: "Move back to review" }).click();

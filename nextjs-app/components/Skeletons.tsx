@@ -1,4 +1,7 @@
-/** Grey placeholder shapes shown while data streams in. They pulse unless reduced motion is on. */
+/** Grey placeholder shapes shown while data streams in. They pulse unless reduced motion is on.
+ *  Each skeleton has the same layout as the content it stands in for, so nothing jumps. */
+
+import { Card } from "@/components/ui/Card";
 
 const bar = "rounded bg-line motion-safe:animate-pulse";
 
@@ -15,11 +18,11 @@ function StatRow() {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-lg border border-line p-4">
+        <Card key={i} className="gap-2">
           <span className={`${bar} h-3.5 w-24`} />
           <span className={`${bar} h-7 w-32`} />
           <span className={`${bar} h-3 w-20`} />
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -67,20 +70,38 @@ export function TableSkeleton() {
 export function OrderDetailSkeleton() {
   return (
     <Loading label="Loading purchase order">
-      <div className="flex flex-col gap-2">
-        <span className={`${bar} h-8 w-48`} />
-        <span className={`${bar} h-4 w-80 max-w-full`} />
+      {/* title, badge and button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <span className={`${bar} h-8 w-48`} />
+          <span className={`${bar} h-4 w-80 max-w-full`} />
+        </div>
+        <span className={`${bar} h-11 w-28`} />
       </div>
-      <span className={`${bar} h-16 w-full`} />
+      {/* step tracker */}
+      <Card className="grid gap-4 sm:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex flex-col gap-2">
+            <span className={`${bar} size-6 rounded-full`} />
+            <span className={`${bar} h-3.5 w-28`} />
+          </div>
+        ))}
+      </Card>
       <StatRow />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="rounded-lg border border-line">
-          <Rows count={8} columns={5} />
-        </div>
-        <div className="flex flex-col gap-4">
-          <span className={`${bar} h-40`} />
-          <span className={`${bar} h-28`} />
-        </div>
+      {/* order details and the three address cards */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} className="gap-2">
+            <span className={`${bar} h-4 w-28`} />
+            <span className={`${bar} h-3.5 w-full`} />
+            <span className={`${bar} h-3.5 w-3/4`} />
+            <span className={`${bar} h-3.5 w-2/3`} />
+          </Card>
+        ))}
+      </div>
+      {/* line items */}
+      <div className="rounded-lg border border-line">
+        <Rows count={8} columns={6} />
       </div>
     </Loading>
   );

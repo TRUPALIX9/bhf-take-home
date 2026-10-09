@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <span
                 aria-hidden
-                className="grid size-7 place-items-center rounded bg-accent text-xs font-semibold text-white"
+                className="grid size-7 place-items-center rounded bg-accent text-xs font-semibold text-inverse"
               >
                 B
               </span>

@@ -17,6 +17,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
+      {/* The root layout (and its font loader) failed, so use a system font directly. */}
       <body className="text-sm antialiased" style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
         <main className="mx-auto max-w-7xl px-4 sm:px-6">
           <ErrorState appError={appErrors.appFailed} error={error} reset={reset} />

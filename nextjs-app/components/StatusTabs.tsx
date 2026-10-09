@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
+import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 
 const tabs = [
@@ -19,7 +20,9 @@ type Counts = { all: number; pending: number; approved: number };
  * server sends the new table; nothing else on the page reloads.
  */
 export function StatusTabs({ counts }: { counts: Counts }) {
-  const current = useSearchParams().get("status") ?? undefined;
+  // Unknown values (?status=foo) show the full list, so treat them as "All".
+  const param = useSearchParams().get("status");
+  const current = param === "pending" || param === "approved" ? param : undefined;
   const [active, setActive] = useOptimistic(current);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -36,6 +39,8 @@ export function StatusTabs({ counts }: { counts: Counts }) {
             href={href}
             scroll={false}
             onClick={(e) => {
+              // Let cmd/ctrl/shift/middle clicks open a new tab as usual.
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
               e.preventDefault();
               // One transition covers the highlight and the navigation, so the
               // highlight stays until the new table has arrived.
@@ -51,13 +56,9 @@ export function StatusTabs({ counts }: { counts: Counts }) {
           >
             {tab.label}
             {isActive && isPending && <Spinner className="size-3.5 text-accent" />}
-            <span
-              className={`num rounded-full px-2 py-0.5 text-xs ${
-                isActive ? "bg-accent-soft text-accent" : "bg-subtle text-muted"
-              }`}
-            >
+            <Badge tone={isActive ? "accent" : "neutral"} dot={false}>
               {count}
-            </span>
+            </Badge>
           </Link>
         );
       })}

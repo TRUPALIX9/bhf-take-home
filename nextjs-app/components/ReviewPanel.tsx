@@ -46,11 +46,14 @@ function stepsFor(status: ReviewStatus, p: Props): Step[] {
  */
 export function ReviewPanel(props: Props) {
   const { poNumber, status, subtitle } = props;
-  const [shownStatus, setShownStatus] = useOptimistic(status);
+  // The reducer flips whatever is on screen now, so it never works from a stale value.
+  const [shownStatus, flipShownStatus] = useOptimistic<ReviewStatus, void>(status, (current) =>
+    current === "pending" ? "approved" : "pending",
+  );
 
   const [state, formAction, isPending] = useActionState<ToggleState, FormData>(
     async (prev, formData) => {
-      setShownStatus(shownStatus === "pending" ? "approved" : "pending");
+      flipShownStatus();
       return toggleReviewStatus(prev, formData);
     },
     {},
@@ -88,6 +91,11 @@ export function ReviewPanel(props: Props) {
           )}
         </form>
       </div>
+
+      {/* Tells screen-reader users what happened after they press the button. */}
+      <p role="status" className="sr-only">
+        {isPending ? "Saving" : state.error ? "" : `Status: ${shownStatus === "approved" ? "Approved" : "Pending review"}`}
+      </p>
 
       <ProcessSteps steps={stepsFor(shownStatus, props)} />
     </div>

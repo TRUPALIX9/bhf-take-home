@@ -35,6 +35,7 @@ One module, five sections, in order:
    - The `TOTALS:` numbers are not aligned under their columns, so they are read in order.
 3. **Validate.** Recompute and compare (see below).
 4. **Write.** Load the template with `openpyxl.load_workbook`, read its header row, and for each item build a dict of *template column name -> value*. Each cell is written in the template's column order. A template column with no mapping raises instead of being skipped. Decimals are written as floats; ID columns are written as text with the `@` format.
+5. **Main.** `argparse` options, then parse → write → print the summary and flags → exit code 0 or 1.
 
 ## Column mapping
 

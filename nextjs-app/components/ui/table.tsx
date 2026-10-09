@@ -4,7 +4,7 @@ type Align = "left" | "right";
 
 export function Th({ children, align = "left" }: { children: React.ReactNode; align?: Align }) {
   return (
-    <th className={`px-3 py-2.5 font-medium text-muted ${align === "right" ? "text-right" : "text-left"}`}>
+    <th scope="col" className={`px-3 py-2.5 font-medium text-muted ${align === "right" ? "text-right" : "text-left"}`}>
       {children}
     </th>
   );

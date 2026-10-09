@@ -110,6 +110,7 @@ sequenceDiagram
   A->>O: orderExists(poNumber)
   alt unknown PO
     A-->>BTN: { error: PO-404 }
+    BTN-->>U: React rolls the optimistic status back, error under the button
   else
     A->>O: toggleStatus(poNumber)
     alt save fails

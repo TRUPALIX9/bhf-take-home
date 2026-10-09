@@ -23,10 +23,12 @@ export function ErrorState({
   }, [appError.code, error]);
 
   return (
-    <div role="alert" className="flex flex-col items-start gap-2 py-10">
+    <div className="flex flex-col items-start gap-2 py-10">
       <p className="font-mono text-xs text-muted">Error {appError.code}</p>
       <h1 className="text-2xl font-semibold tracking-tight">{appError.title}</h1>
-      <p className="max-w-prose text-muted">{appError.message}</p>
+      <p role="alert" className="max-w-prose text-muted">
+        {appError.message}
+      </p>
       {error.digest && (
         // In production Next hides the real message; the digest matches the server log.
         <p className="font-mono text-xs text-muted">Reference {error.digest}</p>

@@ -4,7 +4,7 @@ One script, `po_extract.py`, written for this one purchase order layout. The bri
 
 ## Rules
 
-- Keep it to one module with four sections, in order: model (dataclasses), parse, validate, write + `main`.
+- Keep it to one module with five sections, in order: model (dataclasses), parse, validate, write, `main`.
 - Regexes are named constants at the top of the file.
 - Parse money with `Decimal`. Write floats to Excel.
 - SKU, UPC, Vendor Part #, Dept and PO# are strings written with the `@` format, so leading zeros survive (`0091120032129`, `04212`).

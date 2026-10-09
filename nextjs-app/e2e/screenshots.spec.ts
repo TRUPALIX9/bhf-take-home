@@ -21,7 +21,7 @@ test("README screenshots", async ({ page }) => {
 
   // Approved state, then put it back.
   await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByText("Can be sent on")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible();
   await page.waitForTimeout(700); // let the step animation finish
   await page.screenshot({ path: `${dir}/detail-approved.png`, clip: { x: 0, y: 0, width: 1280, height: 330 } });
   await page.getByRole("button", { name: "Move back to review" }).click();
@@ -42,8 +42,8 @@ test("palette", async ({ page }) => {
   await page.goto("/");
   const tokens = await page.evaluate(() => {
     const names = [
-      "ink", "muted", "line", "line-strong", "subtle", "accent", "accent-dark", "accent-soft",
-      "pending", "pending-bg", "approved", "approved-bg", "danger", "danger-bg",
+      "surface", "subtle", "line", "line-strong", "muted", "ink", "inverse",
+      "accent", "accent-dark", "accent-soft", "pending", "pending-bg", "approved", "approved-bg", "danger",
     ];
     const css = getComputedStyle(document.documentElement);
     return names.map((n) => [n, css.getPropertyValue(`--color-${n}`).trim()]);
@@ -57,7 +57,7 @@ test("palette", async ({ page }) => {
     .join("");
   await page.setContent(`<style>
       body{font:13px -apple-system,Helvetica,Arial,sans-serif;margin:24px;color:#1b2330;background:#fff}
-      .g{display:grid;grid-template-columns:repeat(7,120px);gap:16px}
+      .g{display:grid;grid-template-columns:repeat(8,120px);gap:16px}
       .s{display:flex;flex-direction:column;gap:4px}
       .c{height:56px;border-radius:8px;border:1px solid #e4e9ef}
       code{color:#5d6c7b}

@@ -72,14 +72,14 @@ All colors are `@theme` tokens in `app/globals.css`, so Tailwind classes like `t
 | accent on white, white on accent | 8.4 |
 | pending on pending-bg | 5.8 |
 | approved on approved-bg | 5.6 |
-| danger on white / on danger-bg | 6.6 / 5.7 |
+| danger on white | 6.6 |
 
 UI pieces in `components/ui/`, used everywhere instead of one-off styles:
 
 | Piece | Used for |
 |---|---|
-| `Button`, `buttonClass`, `linkClass` | Approve / Move back, Try again, text links. 44 px tall, visible focus ring. |
-| `Badge` | Status pills. Tones: pending, approved, danger, neutral. Color changes fade. |
+| `Button`, `linkClass` | Approve / Move back, Try again, text links. 44 px tall, visible focus ring. While saving it shows a spinner and ignores clicks but keeps keyboard focus. |
+| `Badge` | Status pills (pending, approved) and tab counts (accent, neutral). Color changes fade. |
 | `Card` | Stat cards, order details, address blocks. |
 | `Th`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. |
 | `Spinner` | Button and tab loading indicators. |
@@ -135,6 +135,11 @@ e2e/                            Playwright tests and the screenshot script
 - **The action is a toggle** on the whole PO. Approving individual lines was out of scope.
 - **Light theme only.**
 - **Skeletons use `<Suspense>`, not `loading.tsx`.** A `loading.tsx` streams the response with status 200 before the page runs, which turned the unknown-PO page into a 200 instead of a 404 (an e2e test caught this). The detail page checks the PO exists before anything streams.
+- **Known `npm audit` advisories, all in tools that never reach the browser or the server at runtime:**
+  - `postcss` inside Next.js 15: build-time only; the only fix is Next 16, which the brief rules out.
+  - `eslint-config-next` → `micromatch`/`braces`: lint-time only; the suggested "fix" downgrades to Next 14's config.
+  - `vitest`: affects its UI server and browser mode, which this project doesn't use; the fix is Vitest 5, which conflicts with the Node 20 types.
+  - `@playwright/test` was upgraded to 1.55.1 to clear its advisory.
 - **Two test-only switches** in `lib/orders.ts`, both off by default: `SIMULATED_LATENCY_MS` (used by `npm run dev:slow`) and `FAIL_PO` (Playwright sets it so one PO fails to load and the error boundary can be tested).
 
 ## Tests

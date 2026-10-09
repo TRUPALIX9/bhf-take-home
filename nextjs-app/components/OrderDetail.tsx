@@ -16,6 +16,7 @@ import { getOrder } from "@/lib/orders";
 /** Everything on the PO page below the breadcrumb. Streams in behind OrderDetailSkeleton. */
 export async function OrderDetail({ poNumber }: { poNumber: string }) {
   const order = await getOrder(poNumber);
+  // The page already returned a real 404 via orderExists(); this only guards the type.
   if (!order) notFound();
 
   const totals = lineTotals(order.lines);
@@ -91,6 +92,7 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
           aria-label="Line items, scrolls sideways"
         >
           <table className="w-full min-w-[58rem]">
+            <caption className="sr-only">Line items for {order.poNumber}</caption>
             <thead className="bg-subtle">
               <tr>
                 <Th>SKU / UPC</Th>

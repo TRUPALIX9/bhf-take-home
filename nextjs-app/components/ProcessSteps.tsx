@@ -2,10 +2,18 @@ type StepState = "done" | "current" | "problem" | "upcoming";
 export type Step = { title: string; detail: string; state: StepState };
 
 const dot: Record<StepState, string> = {
-  done: "border-approved bg-approved text-white",
-  current: "border-accent bg-white text-accent",
-  problem: "border-danger bg-danger text-white",
-  upcoming: "border-line-strong bg-white text-muted",
+  done: "border-approved bg-approved text-inverse",
+  current: "border-accent bg-surface text-accent",
+  problem: "border-danger bg-danger text-inverse",
+  upcoming: "border-line-strong bg-surface text-muted",
+};
+
+// What a screen reader hears after each step title.
+const spoken: Record<StepState, string> = {
+  done: "done",
+  current: "in progress",
+  problem: "needs attention",
+  upcoming: "not started",
 };
 
 /**
@@ -18,7 +26,7 @@ export function ProcessSteps({ steps }: { steps: Step[] }) {
   return (
     <ol
       aria-label="Order progress"
-      className="grid gap-4 rounded-lg border border-line bg-white p-4 sm:grid-cols-4 sm:gap-0"
+      className="grid gap-4 rounded-lg border border-line bg-surface p-4 sm:grid-cols-4 sm:gap-0"
     >
       {steps.map((step, i) => (
         <li
@@ -44,6 +52,7 @@ export function ProcessSteps({ steps }: { steps: Step[] }) {
               <span aria-hidden className="absolute inset-0 rounded-full bg-accent/30 motion-safe:animate-ping" />
             )}
             <span
+              aria-hidden
               className={`relative grid size-6 place-items-center rounded-full border-2 text-xs font-semibold transition-colors duration-300 ${dot[step.state]}`}
             >
               {/* key makes the mark re-mount, so the pop plays each time the state changes */}
@@ -60,6 +69,7 @@ export function ProcessSteps({ steps }: { steps: Step[] }) {
           <span className="flex flex-col">
             <span className={`font-medium transition-colors ${step.state === "upcoming" ? "text-muted" : ""}`}>
               {step.title}
+              <span className="sr-only"> ({spoken[step.state]})</span>
             </span>
             <span className="text-xs text-muted">{step.detail}</span>
           </span>
