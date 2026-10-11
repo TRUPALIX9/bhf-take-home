@@ -114,8 +114,10 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
 
   return (
     <div className="motion-safe:animate-fade-in">
-      {/* Desktop: table (hidden below md). One collapsible <tbody> per master PO: a header row, then its POs. */}
-      <table className="hidden w-full md:table">
+      {/* Wide screens: table (from lg, where its 7 columns fit). One collapsible <tbody> per master PO.
+          The wrapper scrolls sideways if a long value ever makes it wider, so it never spills out of the card. */}
+      <div className="hidden overflow-x-auto lg:block">
+      <table className="w-full">
         <caption className="sr-only">Purchase orders, grouped by master PO</caption>
         <thead className="border-b border-line bg-subtle">
           <tr>
@@ -172,9 +174,10 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
           </MasterGroupRows>
         ))}
       </table>
+      </div>
 
-      {/* Phone: the same groups, each a collapsible heading with its POs as cards (hidden from md up) */}
-      <div className="md:hidden">
+      {/* Phones and tablets: the same groups, each a collapsible heading with its POs as cards (below lg) */}
+      <div className="lg:hidden">
         {groups.map((g) => (
           <MasterGroupSection key={g.master} label={`Master PO ${g.master}`} header={<GroupSummary group={g} href={masterHref(g.master)} />}>
             <ul className="divide-y divide-line border-b border-line">
@@ -188,6 +191,10 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
                     <span className="flex items-center justify-between gap-3">
                       <span className="font-medium">{titleCase(vendorName(o))}</span>
                       <span className="num font-semibold">{formatMoney(o.totalCost)}</span>
+                    </span>
+                    <span className="text-sm text-muted">
+                      Ships {formatDate(o.shipDate)} · {originOf(o).port}
+                      {originOf(o).country && `, ${countryName(originOf(o).country!)}`} · {o.lines.length} lines
                     </span>
                   </Link>
                 </li>

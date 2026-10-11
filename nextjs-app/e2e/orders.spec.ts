@@ -138,12 +138,17 @@ test("unknown PO shows the not-found page", async ({ page }) => {
 });
 
 // The wide line-item table must scroll inside its own box, most of all at 375px.
-test("page never scrolls sideways", async ({ page }) => {
-  await page.goto("/orders/TX9K2QP");
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+test("pages never scroll sideways, at phone, tablet and desktop widths", async ({ page }) => {
+  for (const width of [375, 800, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/", "/orders/TX9K2QP"]) {
+      await page.goto(path);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, `${path} at ${width}px`).toBeLessThanOrEqual(0);
+    }
+  }
 });
 
 // The filter is in the URL, so it works on first load and can be shared.
