@@ -26,7 +26,11 @@ Each folder has its own README and CLAUDE.md. The folders do not import from eac
 
 Run from the repo root:
 
-- `scripts/check.sh` runs every check for both parts and stops on the first failure.
+- `scripts/setup.sh` installs both parts (`--browser` also downloads Playwright's Chromium).
+- `scripts/dev.sh` starts the app (`--slow`, `--prod`, `--port <n>`).
+- `scripts/parse-po.sh` runs the parser; options pass through to `po_extract.py`.
+- `scripts/check.sh` runs every check for both parts and stops on the first failure (`--next`, `--python`, `--no-e2e`).
+- Every script takes `-h`/`--help`. Shared helpers live in `scripts/_common.sh`.
 
 Next.js (`cd nextjs-app`): `npm run dev`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`, `npm run test:e2e`.
 

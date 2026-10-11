@@ -4,10 +4,16 @@ How the two parts fit together, how data and requests move through each one, and
 
 ## 1. System overview
 
-Two independent programs. The only link is data: the parser's JSON output for the sample PO was copied once into the app's seed file.
+Two independent programs and the original materials they were built from. Solid arrows are runtime data flow; dotted arrows are one-time copies or checks. The terminal scripts that run everything are in section 5.
 
 ```mermaid
-flowchart LR
+flowchart TB
+  subgraph T["technical-assessment/: originals"]
+    PDFS["Next.js and Python briefs (PDF)"]
+    OTXT["purchase_order_sample.txt"]
+    OTPL["output_template_blank.xlsx"]
+  end
+
   subgraph B["Part B: python-po-parser"]
     TXT["input/purchase_order_sample.txt"] --> PY["po_extract.py"]
     TPL["input/output_template_blank.xlsx"] --> PY
@@ -19,10 +25,12 @@ flowchart LR
     SEED["data/orders.json"] --> LIB["lib/orders.ts"]
     LIB --> PAGES["List and detail pages"]
     PAGES --> USER(("Reviewer in a browser"))
-    USER -- "Approve / Move back" --> ACTION["Server action"]
+    USER -- "Approve / Move back<br/>(sends target status)" --> ACTION["Server action<br/>setReviewStatus"]
     ACTION --> LIB
   end
 
+  OTXT -. "identical copy (check.sh compares)" .-> TXT
+  OTPL -. "identical copy (check.sh compares)" .-> TPL
   JSON -. "copied once by hand" .-> SEED
 ```
 
@@ -227,13 +235,17 @@ flowchart LR
 | Total Cost | PO grand total (447,455.12) on every row | Header values repeat on every row; per-row cost is already EXT Cost. |
 | Flags | Red fill and a comment on the failing cell, plus stdout and exit code 1 | The schema must match the template, so no extra columns. |
 
-## 5. Checks and delivery
+## 5. Terminal scripts, checks and delivery
+
+Every script is in `scripts/`, works from any folder, and prints its options with `--help`. They share helpers in `scripts/_common.sh`.
 
 ```mermaid
 flowchart LR
-  DEV["Edit code"] --> CHK["scripts/check.sh"]
-  CHK --> N1["next: lint"] --> N2["typecheck"] --> N3["Vitest"] --> N4["build"] --> N5["Playwright<br/>desktop + 375px"]
-  CHK --> P1["python: ruff"] --> P2["pytest"] --> P3["run on sample"]
+  SET["scripts/setup.sh<br/>install once"] --> DEV["Edit code<br/>scripts/dev.sh to see the app<br/>scripts/parse-po.sh to run the parser"]
+  DEV --> CHK["scripts/check.sh"]
+  CHK --> O1["originals: inputs match<br/>technical-assessment/"]
+  O1 --> N1["next: lint"] --> N2["typecheck"] --> N3["Vitest"] --> N4["build"] --> N5["Playwright<br/>desktop + 375px"]
+  O1 --> P1["python: ruff"] --> P2["pytest"] --> P3["run on sample"]
   N5 --> OK{"all pass?"}
   P3 --> OK
   OK -- yes --> C["small commit"] --> GH["push"] --> CI["GitHub Actions runs check.sh"]
