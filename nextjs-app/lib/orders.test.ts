@@ -10,7 +10,7 @@ vi.mock("server-only", () => ({}));
 
 // Imported after the mock is registered, so lib/orders gets the empty stub.
 
-const { getOrder, getOrders, orderExists, resetStatuses, toggleStatus } = await import(
+const { getOrder, getOrders, isReviewStatus, orderExists, resetStatuses, setStatus } = await import(
   "@/lib/orders"
 );
 const { lineTotals } = await import("@/lib/format");
@@ -52,24 +52,41 @@ describe("getOrder", () => {
 
 // --- review status ---
 
-describe("toggleStatus", () => {
-  it("flips pending to approved and back", async () => {
+describe("setStatus", () => {
+  it("sets approved and back to pending", async () => {
     expect((await getOrder("TX9K2QP"))?.status).toBe("pending");
-    expect(await toggleStatus("TX9K2QP")).toBe("approved");
+    expect(await setStatus("TX9K2QP", "approved")).toBe("approved");
     expect((await getOrder("TX9K2QP"))?.status).toBe("approved");
-    expect(await toggleStatus("TX9K2QP")).toBe("pending");
+    expect(await setStatus("TX9K2QP", "pending")).toBe("pending");
+  });
+
+  // The reason it sets instead of flips: a repeated or stale "approve" must not undo itself.
+  it("is idempotent: approving twice leaves the PO approved", async () => {
+    await setStatus("TX9K2QP", "approved");
+    await setStatus("TX9K2QP", "approved");
+    expect((await getOrder("TX9K2QP"))?.status).toBe("approved");
   });
 
   // TX9K3RA is approved in the seed, so both statuses are checked as unchanged.
   it("changes only the PO it is given", async () => {
-    await toggleStatus("TX9K2QP");
+    await setStatus("TX9K2QP", "approved");
     expect((await getOrder("TX9K4MB"))?.status).toBe("pending");
     expect((await getOrder("TX9K3RA"))?.status).toBe("approved");
   });
 
   it("rejects an unknown PO and changes nothing", async () => {
     const before = (await getOrders()).map((o) => o.status);
-    await expect(toggleStatus("NOPE")).rejects.toThrow("Unknown PO NOPE");
+    await expect(setStatus("NOPE", "approved")).rejects.toThrow("Unknown PO NOPE");
     expect((await getOrders()).map((o) => o.status)).toEqual(before);
+  });
+});
+
+describe("isReviewStatus", () => {
+  // The action uses this to reject anything else sent in the form.
+  it("accepts only the two real statuses", () => {
+    expect(isReviewStatus("approved")).toBe(true);
+    expect(isReviewStatus("pending")).toBe(true);
+    expect(isReviewStatus("rejected")).toBe(false);
+    expect(isReviewStatus(null)).toBe(false);
   });
 });

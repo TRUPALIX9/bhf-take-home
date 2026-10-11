@@ -19,7 +19,7 @@ npx create-next-app@15 . --ts --tailwind --eslint --app --no-src-dir --turbopack
 - `params` is a Promise: `const { poNumber } = await params`. Same in `generateMetadata`.
 - Unknown PO: call `notFound()`.
 - Both pages export `dynamic = "force-dynamic"` because review status changes at runtime. No `generateStaticParams`.
-- The action validates the PO number, calls `toggleStatus`, then `revalidatePath("/")` and `revalidatePath(`/orders/${po}`)`.
+- The action validates the PO number and the requested status, calls `setStatus` (sets, never flips, so it is idempotent), then `revalidatePath("/")` and `revalidatePath(`/orders/${po}`)`.
 - Pending state comes from `useActionState` (from `react`), not `useFormState`. `ReviewPanel` also uses `useOptimistic` so the badge and step tracker change before the server answers; React rolls them back if the action returns an error.
 
 ## State
@@ -42,7 +42,7 @@ Data access is async (`await getOrders()`), like a database call. Review status 
 - Pages render their heading at once and wrap the data part in `<Suspense>` with a skeleton from `components/Skeletons.tsx`. No `loading.tsx`: it would stream a 200 before `notFound()` runs. The detail page calls `orderExists()` before any streaming for that reason.
 - `npm run dev:slow` sets `SIMULATED_LATENCY_MS=1200` so skeletons and the button spinner are visible.
 - `FAIL_PO=<po>` makes `getOrder` throw for that PO. Playwright sets it to `TX9K5DC` to test the error boundary. Never set it anywhere else.
-- Every user-facing error has a code and a plain message in `lib/errors.ts` (PO-404, PO-500, PO-501, APP-500, APP-503). Boundaries: `app/global-error.tsx` (root layout), `app/error.tsx` (any page), `app/orders/[poNumber]/error.tsx` (one PO). All use `components/ErrorState.tsx`, which logs the error and shows the code and Next's digest.
+- Every user-facing error has a code and a plain message in `lib/errors.ts` (PO-400, PO-404, PO-500, PO-501, APP-500, APP-503). Boundaries: `app/global-error.tsx` (root layout), `app/error.tsx` (any page), `app/orders/[poNumber]/error.tsx` (one PO). All use `components/ErrorState.tsx`, which logs the error and shows the code and Next's digest.
 - The server action never throws to the client: it returns `{ error: AppError }`, shown under the button.
 - `components/ProcessSteps.tsx` shows where a PO is: Received → Parsed and checked → Review → Ready for downstream. The current step pulses (only when motion is allowed).
 

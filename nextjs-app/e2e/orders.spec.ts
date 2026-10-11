@@ -73,6 +73,22 @@ test.describe("review status", () => {
   });
 
   // The "Review" step stops being current once the PO is approved.
+  // Two tabs on the same PO. Approving in a stale tab must keep it approved, not flip it back.
+  test("a click from an out-of-date tab can't undo an approval", async ({ page, context }) => {
+    const stale = await context.newPage();
+    await stale.goto(po); // still shows "Pending review" and an Approve button
+
+    await page.goto(po);
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
+
+    await stale.getByRole("button", { name: "Approve" }).click();
+    await expect(stale.getByRole("button", { name: "Move back to review" })).toBeVisible();
+    await stale.reload();
+    await expect(stale.getByTestId("status")).toHaveText("Approved");
+    await stale.close();
+  });
+
   test("approving updates the step tracker", async ({ page }) => {
     await page.goto("/orders/TX9K4MB");
     const review = page.getByRole("listitem").filter({ hasText: "Review" }).first();

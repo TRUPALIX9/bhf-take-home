@@ -7,7 +7,7 @@
  */
 
 import { useActionState, useOptimistic } from "react";
-import { toggleReviewStatus, type ToggleState } from "@/app/actions";
+import { setReviewStatus, type ReviewActionState } from "@/app/actions";
 import { ProcessSteps, type Step } from "@/components/ProcessSteps";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/Button";
@@ -59,25 +59,29 @@ export function ReviewPanel(props: Props) {
   // `status` is the server value. `shownStatus` is what the user sees: it equals `status`
   // except while an action is running. When the action ends and the page revalidates,
   // React drops the optimistic value and shows the server one again.
-  // The reducer flips whatever is on screen now, so it never works from a stale value.
-  const [shownStatus, flipShownStatus] = useOptimistic<ReviewStatus, void>(status, (current) =>
-    current === "pending" ? "approved" : "pending",
+  // The optimistic value is simply the status the button asked for.
+  const [shownStatus, showStatus] = useOptimistic<ReviewStatus, ReviewStatus>(
+    status,
+    (_current, requested) => requested,
   );
 
   // --- Server action ---
   // useActionState gives the last result (state.error), a form action to pass to <form>,
-  // and isPending while it runs. The optimistic flip must happen inside the action so
+  // and isPending while it runs. The optimistic update must happen inside the action so
   // React ties it to this transition.
-  const [state, formAction, isPending] = useActionState<ToggleState, FormData>(
+  const [state, formAction, isPending] = useActionState<ReviewActionState, FormData>(
     async (prev, formData) => {
-      flipShownStatus();
-      return toggleReviewStatus(prev, formData);
+      showStatus(formData.get("status") as ReviewStatus);
+      return setReviewStatus(prev, formData);
     },
     {},
   );
 
   // True when the button should approve; false when it should move the PO back.
   const approve = shownStatus === "pending";
+  // The status this click asks for. Sent with the form, so the server sets exactly this
+  // value: a click from an out-of-date tab can't undo someone else's change.
+  const target: ReviewStatus = approve ? "approved" : "pending";
 
   // --- Render ---
   return (
@@ -95,6 +99,7 @@ export function ReviewPanel(props: Props) {
         {/* A real <form> posting to a server action, so the button is a plain submit. */}
         <form action={formAction} className="flex flex-col items-end gap-2">
           <input type="hidden" name="poNumber" value={poNumber} />
+          <input type="hidden" name="status" value={target} />
           {/* While saving, the label names the step we are moving to. */}
           <Button type="submit" variant={approve ? "primary" : "secondary"} pending={isPending}>
             {isPending

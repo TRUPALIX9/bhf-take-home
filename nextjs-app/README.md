@@ -42,7 +42,7 @@ npm run screenshots  # regenerates the images in ../docs/screenshots
 | Next 15, App Router, TypeScript, Tailwind | `package.json`, `app/` | Next 15.5, React 19, Tailwind v4. |
 | Server-rendered list | `app/page.tsx` → `components/OrdersTable.tsx` | Async Server Components read the POs from `lib/orders.ts`. No client-side fetching; the data is in the HTML. |
 | Dynamic route | `app/orders/[poNumber]/page.tsx` → `components/OrderDetail.tsx` | One PO: header, addresses, every line item with SKU, UPC and totals. Unknown PO numbers call `notFound()` and return a real 404. |
-| Server action | `app/actions.ts` | `toggleReviewStatus` moves a PO between **Pending review** and **Approved**. It checks the PO exists, saves the change, and revalidates the list and the detail page. |
+| Server action | `app/actions.ts` | `setReviewStatus` moves a PO between **Pending review** and **Approved**. The button sends the status it wants; the action checks the PO and the status, saves it, and revalidates the list and the detail page. |
 | README | this file | How to run, what the action and route do, assumptions, time spent. |
 
 ## Beyond the brief
@@ -53,7 +53,7 @@ Everything below is extra. The brief's five requirements are complete without it
 - **Dashboard.** Stat cards (pending, approved, total on order, next to ship) and status tabs that filter through the URL (`/?status=pending`).
 - **Only what changes reloads.** The list page has two `<Suspense>` parts. The summary doesn't depend on the filter, so it stays on screen when you switch tabs; only the table (keyed by the filter) reloads. The clicked tab highlights immediately with a small spinner. React's `cache()` makes both parts share one data read per request.
 - **Loading states.** The heading renders at once and each part streams in behind an animated skeleton (`components/Skeletons.tsx`).
-- **Errors with codes.** Every error a person can see has a code and a plain message in `lib/errors.ts`, e.g. *PO-404 PO not found*, *PO-501 Status not saved*. Three error boundaries: the root layout (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
+- **Errors with codes.** Every error a person can see has a code and a plain message in `lib/errors.ts`, e.g. *PO-404 PO not found*, *PO-400 Status not recognised*, *PO-501 Status not saved*. Three error boundaries: the root layout (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
 - **Design system.** Shared tokens and five small UI pieces (below).
 - **Tests and CI.** Vitest, Playwright on desktop and phone, and a GitHub Actions workflow.
 
@@ -95,7 +95,7 @@ app/
   layout.tsx                    fonts, header
   globals.css                   color, font and motion tokens
   page.tsx                      list page: heading + two <Suspense> parts
-  actions.ts                    "use server" toggleReviewStatus
+  actions.ts                    "use server" setReviewStatus
   error.tsx, global-error.tsx   error boundaries
   orders/[poNumber]/
     page.tsx                    404 check, breadcrumb + <Suspense>
@@ -132,7 +132,8 @@ e2e/                            Playwright tests and the screenshot script
 - **Status is kept in memory.** It starts from the JSON file and lives in a `Map` on `globalThis`, so it survives hot reloads in dev but **resets when the server restarts**. With several serverless instances (e.g. Vercel) each would have its own copy. A database would replace `lib/orders.ts` and nothing else.
 - **Pages render on every request** (`dynamic = "force-dynamic"`) because status changes at runtime. Without it, Next prerenders `/` at build time and the new status would not show.
 - **No authentication.** Anyone who can open the app can approve a PO.
-- **The action is a toggle** on the whole PO. Approving individual lines was out of scope.
+- **The action sets a status; it never flips one.** The form sends `status=approved` or `status=pending`, so it is idempotent: clicking twice, clicking from an out-of-date tab, or two reviewers at once can't turn an approval back into "pending". The last write wins; a real system would also check a version number.
+- **The status applies to the whole PO.** Approving individual lines was out of scope.
 - **Light theme only.**
 - **Skeletons use `<Suspense>`, not `loading.tsx`.** A `loading.tsx` streams the response with status 200 before the page runs, which turned the unknown-PO page into a 200 instead of a 404 (an e2e test caught this). The detail page checks the PO exists before anything streams.
 - **Known `npm audit` advisories, all in tools that never reach the browser or the server at runtime:**
@@ -144,8 +145,8 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Tests
 
-- **Unit (Vitest, 10 tests):** order lookup and sort order, unknown PO, toggle both ways, toggle affects only one PO, unknown PO toggle rejects and changes nothing, every PO's lines add up to its total, money and date formatting.
-- **End to end (Playwright, 9 tests × desktop and 375 px phone):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; the step tracker moves to "Can be sent on" and back; tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
+- **Unit (Vitest, 12 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, money and date formatting.
+- **End to end (Playwright, 10 tests × desktop and 375 px phone):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; approving from an out-of-date second tab keeps the PO approved; the step tracker moves to "Can be sent on" and back; tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
 
 ## With more time
 

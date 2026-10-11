@@ -64,14 +64,22 @@ export function orderExists(poNumber: string): boolean {
 }
 
 // --- Writes ---
-/** Flips an order between pending and approved and returns the new status. */
-export async function toggleStatus(poNumber: string): Promise<ReviewStatus> {
+/** True for the two values a review status can take. Used to check form input. */
+export function isReviewStatus(value: unknown): value is ReviewStatus {
+  return value === "pending" || value === "approved";
+}
+
+/**
+ * Sets an order's review status to the given value.
+ * It sets rather than flips, so it is idempotent: sending "approved" twice leaves the
+ * PO approved. A flip would undo the first click if a second tab or a second reviewer
+ * clicked from a page that was out of date.
+ */
+export async function setStatus(poNumber: string, status: ReviewStatus): Promise<ReviewStatus> {
   await wait();
-  const current = statuses().get(poNumber);
-  if (!current) throw new Error(`Unknown PO ${poNumber}`);
-  const next: ReviewStatus = current === "pending" ? "approved" : "pending";
-  statuses().set(poNumber, next);
-  return next;
+  if (!statuses().has(poNumber)) throw new Error(`Unknown PO ${poNumber}`);
+  statuses().set(poNumber, status);
+  return status;
 }
 
 /** Puts every order back to its seed status. Used by tests. */

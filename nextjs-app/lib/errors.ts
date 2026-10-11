@@ -14,6 +14,11 @@ export const appErrors = {
     title: "This purchase order could not load",
     message: "The rest of the app still works. Try again, or go back to the list and open a different PO.",
   },
+  invalidStatus: {
+    code: "PO-400",
+    title: "Status not recognised",
+    message: "The page asked for a status that doesn't exist. Reload the page and try again.",
+  },
   statusNotSaved: {
     code: "PO-501",
     title: "Status not saved",

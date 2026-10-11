@@ -60,7 +60,7 @@ flowchart TD
   Steps["ProcessSteps"]
   OD --> Review["ReviewPanel (client)<br/>useOptimistic + useActionState"]
   Review --> Steps
-  Review --> Action["app/actions.ts<br/>toggleReviewStatus"]
+  Review --> Action["app/actions.ts<br/>setReviewStatus"]
   OD --> UI["components/ui<br/>Button, Badge, Card, Th/Td, Spinner"]
   Review --> UI
   Action --> Orders["lib/orders.ts<br/>server-only, cache()"]
@@ -112,7 +112,7 @@ sequenceDiagram
     A-->>BTN: { error: PO-404 }
     BTN-->>U: React rolls the optimistic status back, error under the button
   else
-    A->>O: toggleStatus(poNumber)
+    A->>O: setStatus(poNumber, target)
     alt save fails
       A-->>BTN: { error: PO-501 } (logged on server)
       BTN-->>U: React rolls the optimistic status back, error under the button
@@ -145,7 +145,7 @@ sequenceDiagram
 flowchart TD
   E{"Where did it fail?"}
   E -- "unknown PO in URL" --> NF["not-found.tsx<br/>PO-404, real 404 status"]
-  E -- "server action" --> AE["action returns { error }<br/>PO-404 or PO-501 under the button"]
+  E -- "server action" --> AE["action returns { error }<br/>PO-404, PO-400 or PO-501 under the button"]
   E -- "rendering one PO" --> PE["orders/[poNumber]/error.tsx<br/>PO-500, list still works"]
   E -- "any other page" --> GE["app/error.tsx<br/>APP-500, header stays"]
   E -- "root layout" --> RE["global-error.tsx<br/>APP-503, own html/body"]
@@ -162,7 +162,8 @@ flowchart TD
 | Where status lives | In-memory `Map` on `globalThis`, seeded from JSON | No dependencies, works on Vercel's read-only filesystem. Resets on restart (stated in README). |
 | Rendering | `dynamic = "force-dynamic"` on both pages | Status changes at runtime; a prerendered page would show stale status. |
 | Data access | Only `lib/orders.ts` touches data, all async | Swapping in a database later is a one-file change. |
-| Client code | Toggle button, status tabs, error state | Everything else stays on the server. |
+| Client code | Review panel, status tabs, error state | Everything else stays on the server. |
+| Set, not toggle | The button sends the status it wants; the server sets exactly that | Idempotent: a repeated click, a stale tab or two reviewers at once can't flip an approval back. |
 | Partial reloads | Summary and table are separate `<Suspense>` parts; only the table is keyed by filter | Switching tabs reloads only the rows. `cache()` makes both parts share one data read. |
 | Errors | Codes and messages in `lib/errors.ts`; three error boundaries | A person sees a plain message and a code to quote; the action returns errors instead of throwing. |
 | No `loading.tsx` | Skeletons come from `<Suspense>` inside the page | `loading.tsx` streamed a 200 before `notFound()` ran, so unknown POs lost their 404. |
