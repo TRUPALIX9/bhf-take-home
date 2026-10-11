@@ -60,7 +60,7 @@ export async function OrdersTable({ filter }: { filter?: ReviewStatus }) {
                 <StatusBadge status={o.status} />
               </Td>
               <Td>
-                <span className="block font-medium">{titleCase(vendorName(o))}</span>
+                <span className="block font-medium whitespace-nowrap">{titleCase(vendorName(o))}</span>
                 <span className="block text-xs text-muted">{o.shipTerms}</span>
               </Td>
               <Td className="whitespace-nowrap">{formatDate(o.shipDate)}</Td>

@@ -8,7 +8,7 @@ type Align = "left" | "right";
 /** Header cell. scope="col" tells screen readers which column each data cell belongs to. */
 export function Th({ children, align = "left" }: { children: React.ReactNode; align?: Align }) {
   return (
-    <th scope="col" className={`px-3 py-2.5 font-medium text-muted ${align === "right" ? "text-right" : "text-left"}`}>
+    <th scope="col" className={`px-3 py-2.5 font-medium whitespace-nowrap text-muted ${align === "right" ? "text-right" : "text-left"}`}>
       {children}
     </th>
   );
