@@ -171,6 +171,8 @@ flowchart TD
 | Rendering | `dynamic = "force-dynamic"` on both pages | Status changes at runtime; a prerendered page would show stale status. |
 | Data access | Only `lib/orders.ts` touches data, all async | Swapping in a database later is a one-file change. |
 | Client code | Review panel, status tabs, error state | Everything else stays on the server. |
+| Information order | Detail page: identity and status → deciding facts → line items → addresses; each fact once | A reviewer's eye lands top-left first, so what decides approval goes there; reference data goes last. |
+| Color | Amber = waiting, green = done or checks out, red = problem, blue = links, actions and share bars | Color carries meaning only, so it never competes with the data. |
 | Set, not toggle | The button sends the status it wants; the server sets exactly that | Idempotent: a repeated click, a stale tab or two reviewers at once can't flip an approval back. |
 | Partial reloads | Summary and table are separate `<Suspense>` parts; only the table is keyed by filter | Switching tabs reloads only the rows. `cache()` makes both parts share one data read. |
 | Errors | Codes and messages in `lib/errors.ts`; three error boundaries | A person sees a plain message and a code to quote; the action returns errors instead of throwing. |

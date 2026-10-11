@@ -17,7 +17,7 @@ test("list is rendered on the server", async ({ request }) => {
   // The raw HTML, before any JavaScript runs, already contains the data.
   const html = await (await request.get("/")).text();
   expect(html).toContain("TX9K2QP");
-  expect(html).toContain("HARBOR POINT TRADING LTD");
+  expect(html).toContain("Harbor Point Trading Ltd"); // vendor names are title-cased in the list
 });
 
 test("open a PO from the list and see its line items", async ({ page }) => {

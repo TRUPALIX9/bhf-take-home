@@ -3,7 +3,16 @@
  * Run: npm test (Vitest). The pages show every number through these.
  */
 import { describe, expect, it } from "vitest";
-import { formatDate, formatMoney, formatUnitCost, lineTotals } from "@/lib/format";
+import {
+  formatAddressLine,
+  formatDate,
+  formatMoney,
+  formatPercent,
+  formatUnitCost,
+  lineTotals,
+  splitCode,
+  titleCase,
+} from "@/lib/format";
 import type { LineItem } from "@/lib/types";
 
 // --- formatting ---
@@ -30,5 +39,32 @@ describe("format", () => {
       extCost: 0.3,
       kilograms: 0.3,
     });
+  });
+});
+
+// --- readable text ---
+
+describe("readable text", () => {
+  it("title-cases names without touching separators", () => {
+    expect(titleCase("HARBOR POINT TRADING LTD")).toBe("Harbor Point Trading Ltd");
+    expect(titleCase("331 DISTRIBUTION/NORTHEAST")).toBe("331 Distribution/Northeast");
+  });
+
+  it("formats phone and fax lines and leaves other lines alone", () => {
+    expect(formatAddressLine("PHONE : 9085551040")).toBe("Phone (908) 555-1040");
+    expect(formatAddressLine("FAX : 9085551099")).toBe("Fax (908) 555-1099");
+    expect(formatAddressLine("PHONE : 922135550110")).toBe("PHONE : 922135550110"); // not a 10-digit US number
+    expect(formatAddressLine("410 COMMERCE AVE")).toBe("410 COMMERCE AVE");
+  });
+
+  it("splits a printed code from the name", () => {
+    expect(splitCode("610 JORDAN MILLER")).toEqual({ code: "610", name: "JORDAN MILLER" });
+    expect(splitCode("JORDAN MILLER")).toEqual({ name: "JORDAN MILLER" });
+  });
+
+  it("formats shares as whole percents, with <1% for tiny ones", () => {
+    expect(formatPercent(0.6612)).toBe("66%");
+    expect(formatPercent(0.004)).toBe("<1%");
+    expect(formatPercent(0)).toBe("0%");
   });
 });

@@ -101,20 +101,21 @@ export function OrderDetailSkeleton() {
         ))}
       </Card>
       <StatRow />
-      {/* order details and the three address cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} className="gap-2">
-            <span className={`${bar} h-4 w-28`} />
-            <span className={`${bar} h-3.5 w-full`} />
-            <span className={`${bar} h-3.5 w-3/4`} />
-            <span className={`${bar} h-3.5 w-2/3`} />
-          </Card>
-        ))}
-      </div>
-      {/* line items */}
-      <div className="rounded-lg border border-line">
-        <Rows count={8} columns={6} />
+      {/* line items, with the three address cards beside them on wide screens */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_17rem]">
+        <div className="rounded-lg border border-line">
+          <Rows count={8} columns={5} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 xl:content-start">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="gap-2">
+              <span className={`${bar} h-4 w-20`} />
+              <span className={`${bar} h-3.5 w-full`} />
+              <span className={`${bar} h-3.5 w-3/4`} />
+              <span className={`${bar} h-3.5 w-2/3`} />
+            </Card>
+          ))}
+        </div>
       </div>
     </Loading>
   );
