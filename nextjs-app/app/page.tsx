@@ -35,7 +35,8 @@ export default async function OrdersPage({ searchParams }: Props) {
 
       {/* Toolbar and table share one card. Only the table is keyed by the filters and sort,
           so it is the only part that shows a skeleton when one of them changes. */}
-      <section aria-label="Order list" className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+      {/* No overflow-hidden here: the Filters panel must be able to extend past the card. */}
+      <section aria-label="Order list" className="rounded-xl border border-line bg-surface shadow-sm">
         <Suspense fallback={<ToolbarSkeleton />}>
           <OrdersToolbar filters={filters} />
         </Suspense>

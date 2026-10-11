@@ -128,7 +128,7 @@ test("page never scrolls sideways", async ({ page }) => {
 // TX9K3RA is the only PO approved in the seed.
 test("status tabs filter the list", async ({ page }) => {
   await page.goto("/?status=approved");
-  const rows = page.locator("table tbody tr, ul li").filter({ visible: true });
+  const rows = page.locator("table tbody tr:has(td), ul li").filter({ visible: true }); // PO rows, not master-PO headers
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("TX9K3RA");
 });
@@ -153,7 +153,7 @@ test("a PO that fails to load shows the error boundary, not a crash", async ({ p
 test("clicking a column header sorts the table, and clicking again reverses it", async ({ page, isMobile }) => {
   test.skip(isMobile, "the sortable table is the desktop view; phones get the card list");
   await page.goto("/");
-  const firstPo = page.locator("tbody tr").first().locator("td").first();
+  const firstPo = page.locator("tbody tr:has(td)").first().getByRole("link");
 
   await page.getByRole("link", { name: /Total cost/ }).click();
   await expect(page).toHaveURL(/sort=total&dir=desc/);
@@ -164,22 +164,32 @@ test("clicking a column header sorts the table, and clicking again reverses it",
   await expect(firstPo).toHaveText("TX9K3RA"); // the smallest PO
 });
 
-test("Filters: pick several values, apply, and remove one chip", async ({ page }) => {
+test("Filters: only offers options that fit, ticks apply at once, Select all and Clear all work", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /^Filters/ }).click();
   const panel = page.getByRole("dialog", { name: "Filter purchase orders" });
+  const vendors = panel.locator("fieldset", { hasText: "Vendor" });
+
+  // Before any filter, all four vendors are offered.
+  await expect(vendors.getByRole("checkbox")).toHaveCount(4);
+
+  // Tick China: the table filters at once, and Indus Home Mills (Pakistan) is no longer offered.
   await panel.getByLabel(/^China/).check();
-  await panel.getByLabel(/^Indus Home Mills/).check();
-  await panel.getByRole("button", { name: /^Apply/ }).click();
+  await expect(page).toHaveURL(/country=CHN/);
+  await expect(vendors.getByRole("checkbox")).toHaveCount(3);
+  await expect(vendors.getByText("Indus Home Mills Pvt Ltd")).toHaveCount(0);
 
-  // China AND that vendor: no PO is both (Indus ships from Pakistan), so the empty state shows.
-  await expect(page).toHaveURL(/country=CHN&vendor=50417/);
-  await expect(page.getByText(/No POs from China/)).toBeVisible();
-
-  // Removing the vendor chip leaves the China filter: three POs.
-  await page.getByRole("button", { name: "Remove filter Indus Home Mills Pvt Ltd" }).click();
-  await expect(page).toHaveURL(/country=CHN$/);
+  // Tick one vendor: one PO. Select all vendors: China's three again.
+  await vendors.getByLabel(/^Harbor Point/).check();
+  await expect(page.getByRole("link", { name: /^All/ })).toContainText("1");
+  await vendors.getByRole("button", { name: "Select all" }).click();
   await expect(page.getByRole("link", { name: /^All/ })).toContainText("3");
+  await page.getByRole("button", { name: "Done" }).click();
+
+  // Clear all removes every chip.
+  await page.getByRole("button", { name: "Clear all" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("link", { name: /^All/ })).toContainText("4");
 });
 
 test("clicking anywhere on a row opens the PO", async ({ page, isMobile }) => {
@@ -200,8 +210,26 @@ test("an empty tab shows a friendly message", async ({ page }) => {
 
 test("Ref master PO opens the list of POs that share it", async ({ page }) => {
   await page.goto("/orders/TX9K2QP");
-  await page.getByRole("link", { name: /TX9H1LM/ }).click();
+  // The link on the PO document (the breadcrumb has one too).
+  await page.getByRole("article").getByRole("link", { name: /TX9H1LM/ }).click();
   await expect(page).toHaveURL(/master=TX9H1LM/);
   await expect(page.getByRole("button", { name: "Remove filter Master PO TX9H1LM" })).toBeVisible();
   await expect(page.getByRole("link", { name: /^All/ })).toContainText("2"); // TX9K2QP and TX9K3RA
+});
+
+test("the PO page breadcrumb shows its master PO", async ({ page }) => {
+  await page.goto("/orders/TX9K3RA");
+  const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(crumbs).toContainText("Purchase orders / Master PO TX9H1LM / TX9K3RA");
+});
+
+test("a master PO group collapses and expands", async ({ page, isMobile }) => {
+  test.skip(isMobile, "same component on phones; checked once on desktop");
+  await page.goto("/");
+  const row = page.getByRole("link", { name: "TX9K3RA" });
+  await expect(row).toBeVisible();
+  await page.getByRole("button", { name: "Collapse master PO TX9H1LM" }).click();
+  await expect(row).toBeHidden();
+  await page.getByRole("button", { name: "Expand master PO TX9H1LM" }).click();
+  await expect(row).toBeVisible();
 });

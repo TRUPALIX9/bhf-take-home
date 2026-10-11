@@ -50,9 +50,11 @@ npm run screenshots  # regenerates the images in ../docs/screenshots
 Everything below is extra. The brief's five requirements are complete without it.
 
 - **Animated review flow.** `components/ReviewPanel.tsx` uses `useOptimistic`, so clicking Approve updates the badge, the button and the step tracker immediately. The connector line fills in and the check mark pops while the action runs. If saving fails, React restores the old status and the error appears under the button.
-- **Dashboard.** Stat cards (pending in amber, approved in green, total on order, next to ship), a review-progress bar by order value, and status tabs that filter through the URL (`/?status=pending`). Each PO's total has a bar so the large orders stand out.
+- **List page built around faceted filtering.** Status (All / Pending review / Approved) is a filter shown as tabs. The **Filters** button opens origin, vendor and master PO checkbox groups with Select all and Clear. Each tick applies at once; values in one group combine with OR, groups combine with AND. Each group only offers values that would return POs, given the other filters and the tab, with live counts, so there are no dead ends (`lib/filters.ts`). Active filters show as removable chips, with Clear all. Everything is in the URL, so every view is a shareable link.
+- **Hierarchy: master PO → PO.** The table groups POs under their master PO (the printed "REF MASTER PO#"). Each group shows its PO count, statuses and total value, and can be collapsed. The PO page breadcrumb follows the same path, and "Ref master PO" on the document opens the list filtered to that master.
+- **Sortable table.** Click any header; sorting runs on the server from the URL. The whole row opens the PO. An empty filter result shows a friendly animated message ("No POs waiting for review. All caught up.").
 - **Detail page: the review on top, the PO as a document below.** Top: PO number, status, Approve button and step tracker, then three green/red checks that mirror the Python validator (cartons × pack = units, unit cost × units = ext cost, lines add up to the printed total; `lib/checks.ts`). Below: the purchase order laid out like the printed one a buyer or vendor knows: issuer and "PURCHASE ORDER" header, Vendor / Ship to / Bill to blocks, a terms strip (PO date, ship date, ship terms, ref master PO), the line items in the PO's own column order, and totals at the bottom right ending in the total invoice value. Names are title-cased and phone numbers formatted.
-- **Only what changes reloads.** The list page has two `<Suspense>` parts. The summary doesn't depend on the filter, so it stays on screen when you switch tabs; only the table (keyed by the filter) reloads. The clicked tab highlights immediately with a small spinner. React's `cache()` makes both parts share one data read per request.
+- **Only what changes reloads.** The toolbar and the table are separate `<Suspense>` parts; only the table is keyed by the filters and sort, so changing them reloads only the rows. React's `cache()` makes them share one data read per request.
 - **Loading states.** The heading renders at once and each part streams in behind an animated skeleton (`components/Skeletons.tsx`).
 - **Errors with codes.** Every error a person can see has a code and a plain message in `lib/errors.ts`, e.g. *PO-404 PO not found*, *PO-400 Status not recognised*, *PO-501 Status not saved*. Three error boundaries: the root layout (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
 - **Design system.** Shared tokens and five small UI pieces (below).
@@ -84,7 +86,6 @@ UI pieces in `components/ui/`, used everywhere instead of one-off styles:
 | `Card` | Stat cards, order details, address blocks. |
 | `Th`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. |
 | `Spinner` | Button and tab loading indicators. |
-| `Meter`, `SegmentedBar` | Share bars: each PO's cost on the list, and approved vs pending value. |
 
 Motion is short (200–500 ms) and every animation is wrapped in `motion-safe:`, so it is off for people who ask their system for reduced motion.
 
@@ -105,21 +106,26 @@ app/
     error.tsx                   PO-500
 components/
   ui/                           Button, Badge, Card, Th/Td, Spinner
-  OrdersSummary.tsx             stat cards + tab counts (server)
+  OrdersToolbar.tsx             tabs + Filters menu with facet counts (server)
+  FiltersMenu.tsx               the Filters panel and chips (client)
+  MasterGroup.tsx               collapsible master PO group (client)
   OrdersTable.tsx               rows for the current filter (server)
-  StatusTabs.tsx                tabs with instant highlight (client)
+  StatusTabs.tsx                status tabs with instant highlight (client)
   OrderDetail.tsx               review panel + checks + PO document (server)
   ReviewChecks.tsx              the three pass/fail checks
   PurchaseOrderDocument.tsx     the PO laid out like the printed document
   ReviewPanel.tsx               title, badge, button, step tracker (client, optimistic)
   ProcessSteps.tsx              Received → … → Ready for downstream
   Skeletons.tsx                 loading placeholders
-  StatCard.tsx, StatusBadge.tsx, ErrorState.tsx
+  StatusBadge.tsx, ErrorCard.tsx, ErrorState.tsx
 lib/
   types.ts                      Order, LineItem, ReviewStatus
   orders.ts                     the only module that reads or changes data
   errors.ts                     error codes and messages
   checks.ts                     the review checks (same rules as the Python validator)
+  filters.ts                    status + facets: URL parsing, matching, facet options
+  sort.ts                       sortable columns and list URLs
+  origin.ts                     port and country from the ship terms
   format.ts                     money, dates, totals
 data/orders.json                seed data
 e2e/                            Playwright tests and the screenshot script

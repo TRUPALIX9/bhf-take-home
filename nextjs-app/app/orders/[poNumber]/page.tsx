@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { OrderDetail } from "@/components/OrderDetail";
 import { OrderDetailSkeleton } from "@/components/Skeletons";
-import { orderExists } from "@/lib/orders";
+import { orderExists, refMasterOf } from "@/lib/orders";
 
 // Status can change at any time, so never prerender this page.
 export const dynamic = "force-dynamic";
@@ -28,6 +28,7 @@ export default async function OrderPage({ params }: Props) {
   // Check before anything streams, so an unknown PO gets a real 404 status.
   // notFound() throws and renders the sibling not-found.tsx.
   if (!orderExists(poNumber)) notFound();
+  const master = refMasterOf(poNumber);
 
   return (
     <div className="flex flex-col gap-3">
@@ -36,7 +37,18 @@ export default async function OrderPage({ params }: Props) {
           Purchase orders
         </Link>
         <span aria-hidden> / </span>
-        <span className="text-ink">{poNumber}</span>
+        {/* The hierarchy: list > master PO (the parent order) > this PO */}
+        {master && (
+          <>
+            <Link href={`/?master=${master}`} className="hover:text-ink hover:underline">
+              Master PO <span className="font-mono">{master}</span>
+            </Link>
+            <span aria-hidden> / </span>
+          </>
+        )}
+        <span aria-current="page" className="font-mono text-ink">
+          {poNumber}
+        </span>
       </nav>
       {/* The breadcrumb shows at once; the order data streams in when ready. */}
       <Suspense fallback={<OrderDetailSkeleton />}>

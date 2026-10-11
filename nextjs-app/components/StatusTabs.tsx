@@ -36,7 +36,7 @@ export function StatusTabs({ counts }: { counts: Counts }) {
   const param = params.get("status");
   // Switching tabs keeps the current sort and the Filters-menu filters.
   const sort = parseSort(params.get("sort") ?? undefined, params.get("dir") ?? undefined);
-  const { country, vendor, master } = filtersFromSearchParams(params);
+  const { country, vendor, master } = filtersFromSearchParams(params); // facets, kept across tabs
   const menuFilters = { country, vendor, master };
   const current = param === "pending" || param === "approved" ? param : undefined;
   // `active` follows the URL, but can be set ahead of it during a transition.

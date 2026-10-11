@@ -45,15 +45,15 @@ export function nextSort(current: Sort, key: SortKey): Sort {
 }
 
 /** The list filters that live in the URL next to the sort (see lib/filters.ts). */
-export type Filters = { status?: string; country?: string[]; vendor?: string[]; master?: string };
+export type Filters = { status?: string; country?: string[]; vendor?: string[]; master?: string[] };
 
 /** Builds the list URL for the filters and a sort, leaving out empty values and defaults. */
-export function listHref({ status, country = [], vendor = [], master }: Filters, sort: Sort): string {
+export function listHref({ status, country = [], vendor = [], master = [] }: Filters, sort: Sort): string {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (country.length) params.set("country", country.join(","));
   if (vendor.length) params.set("vendor", vendor.join(","));
-  if (master) params.set("master", master);
+  if (master.length) params.set("master", master.join(","));
   if (sort.key !== defaultSort.key || sort.dir !== defaultSort.dir) {
     params.set("sort", sort.key);
     params.set("dir", sort.dir);

@@ -61,9 +61,13 @@ Arrows point from a module to what it uses. Only `lib/orders.ts` touches data.
 
 ```mermaid
 flowchart TD
-  List["app/page.tsx<br/>heading + 2 Suspense parts"] --> Summary["OrdersSummary (server)<br/>stats + tab counts"]
-  List --> Table["OrdersTable (server)<br/>rows for the filter"]
-  Summary --> Tabs["StatusTabs (client)<br/>instant highlight"]
+  List["app/page.tsx<br/>heading + 2 Suspense parts"] --> Toolbar["OrdersToolbar (server)<br/>tab counts + facet options"]
+  List --> Table["OrdersTable (server)<br/>rows grouped by master PO"]
+  Toolbar --> Tabs["StatusTabs (client)<br/>status filter"]
+  Toolbar --> FM["FiltersMenu (client)<br/>origin, vendor, master PO"]
+  Table --> MG["MasterGroup (client)<br/>collapsible"]
+  Toolbar --> F["lib/filters.ts<br/>matches + facetOptions"]
+  Table --> F
   Detail["orders/[poNumber]/page.tsx<br/>404 check + Suspense"] --> OD["OrderDetail (server)"]
   Steps["ProcessSteps"]
   OD --> Review["ReviewPanel (client)<br/>useOptimistic + useActionState"]
@@ -74,7 +78,7 @@ flowchart TD
   OD --> UI["components/ui<br/>Button, Badge, Card, Th/Td, Spinner"]
   Review --> UI
   Action --> Orders["lib/orders.ts<br/>server-only, cache()"]
-  Summary --> Orders
+  Toolbar --> Orders
   Table --> Orders
   OD --> Orders
   Detail --> Orders
@@ -144,7 +148,7 @@ sequenceDiagram
   U->>T: click "Approved"
   T->>T: useOptimistic: tab highlighted + spinner at once
   T->>S: router.push("/?status=approved") in a transition
-  Note over T,S: Summary boundary has no key: stays on screen.<br/>Table boundary is keyed by filter: only it reloads.
+  Note over T,S: Toolbar boundary has no key: stays on screen.<br/>Table boundary is keyed by filters and sort: only it reloads.
   S-->>T: new table rows (getOrders read once via cache())
   T-->>U: rows swap, spinner stops
 ```
@@ -176,7 +180,9 @@ flowchart TD
 | Information order | Detail page: the review (status, button, steps, pass/fail checks) on top; the PO as a familiar document below | The decision comes first; the record is laid out the way buyers and vendors already read a PO. |
 | Color | Amber = waiting, green = done or checks out, red = problem, blue = links, actions and share bars | Color carries meaning only, so it never competes with the data. |
 | Set, not toggle | The button sends the status it wants; the server sets exactly that | Idempotent: a repeated click, a stale tab or two reviewers at once can't flip an approval back. |
-| Partial reloads | Summary and table are separate `<Suspense>` parts; only the table is keyed by filter | Switching tabs reloads only the rows. `cache()` makes both parts share one data read. |
+| Partial reloads | Toolbar and table are separate `<Suspense>` parts; only the table is keyed by filters and sort | Changing a filter reloads only the rows. `cache()` makes both parts share one data read. |
+| Faceted filters | Status as tabs; origin, vendor, master PO as facets; OR inside a facet, AND across; options limited to what returns results | People never pick a filter that empties the list by surprise; every view is a URL. |
+| Hierarchy | POs grouped under master PO, collapsible; breadcrumb List / Master PO / PO | Mirrors how the POs relate on paper ("REF MASTER PO#"). |
 | Errors | Codes and messages in `lib/errors.ts`; three error boundaries | A person sees a plain message and a code to quote; the action returns errors instead of throwing. |
 | No `loading.tsx` | Skeletons come from `<Suspense>` inside the page | `loading.tsx` streamed a 200 before `notFound()` ran, so unknown POs lost their 404. |
 

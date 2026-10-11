@@ -63,6 +63,11 @@ export function orderExists(poNumber: string): boolean {
   return orders.some((o) => o.poNumber === poNumber);
 }
 
+/** Instant lookup of a PO's master PO, for the breadcrumb (which renders before the data streams). */
+export function refMasterOf(poNumber: string): string | undefined {
+  return orders.find((o) => o.poNumber === poNumber)?.refMasterPo;
+}
+
 // --- Writes ---
 /** True for the two values a review status can take. Used to check form input. */
 export function isReviewStatus(value: unknown): value is ReviewStatus {

@@ -12,6 +12,12 @@ const paths = {
       <path d="m8 12 3 3 5-6" />
     </>
   ),
+  // chevron pointing down: expand / collapse
+  chevron: (
+    <>
+      <path d="m6 9 6 6 6-6" />
+    </>
+  ),
   // funnel: filters
   filter: (
     <>
