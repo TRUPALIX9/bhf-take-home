@@ -1,9 +1,8 @@
 """Turn the sample purchase order text file into the output template spreadsheet.
 
 Run: python3 po_extract.py [--input ...] [--output ...] [--json]
-Flow: text file -> parse -> validate -> filled template (.xlsx), plus optional
-JSON that seeds the Next.js app. Written for this one PO layout, on purpose.
-Sections, in order: model, parse, validate, write, main.
+Flow: text -> parse -> validate -> filled template (.xlsx), plus optional JSON
+that seeds the Next.js app. Written for this one PO layout, on purpose.
 """
 
 import argparse
@@ -11,9 +10,10 @@ import json
 import re
 import sys
 import zipfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import date, datetime
 from decimal import Decimal
+from itertools import takewhile
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -25,42 +25,30 @@ DEFAULT_INPUT = HERE / "input" / "purchase_order_sample.txt"
 DEFAULT_TEMPLATE = HERE / "input" / "output_template_blank.xlsx"
 DEFAULT_OUTPUT = HERE / "output" / "purchase_order_sample.xlsx"
 
-# Header fields. A value ends at a run of 2+ spaces, where the next column starts.
-# Single spaces stay inside the value, so "610 JORDAN MILLER" is read whole.
+# Header fields. A value ends at a run of 2+ spaces, where the next column starts,
+# so "BUYER: 610 JORDAN MILLER   ..." reads "610 JORDAN MILLER" whole.
 BUYER_RE = re.compile(r"BUYER: (?P<value>.+?)(?: {2,}|$)")
-# "SHIP TERMS: FOB Ningbo,CHN" -> "FOB Ningbo,CHN".
 SHIP_TERMS_RE = re.compile(r"SHIP TERMS: (?P<value>.+?)(?: {2,}|$)")
-# "PO#: TX9K2QP". The lookbehind skips "REF MASTER PO#:", which also ends in "PO#: ".
+# The lookbehind skips "REF MASTER PO#:", which also ends in "PO#: ".
 PO_NUMBER_RE = re.compile(r"(?<!MASTER )PO#: (?P<value>\S+)")
-# "REF MASTER PO#: TX9H1LM".
 REF_MASTER_PO_RE = re.compile(r"REF MASTER PO#: (?P<value>\S+)")
-# "SHIP DATE: 5/02/26". Two-digit year, so it is parsed with %y.
-SHIP_DATE_RE = re.compile(r"SHIP DATE: (?P<value>\d{1,2}/\d{1,2}/\d{2})$")
-# The PO date has no label: it is the 4-digit-year date at the end of the
-# BUYER line, "... 3/14/2026". The 4-digit year keeps it from matching SHIP DATE.
+SHIP_DATE_RE = re.compile(r"SHIP DATE: (?P<value>\d{1,2}/\d{1,2}/\d{2})$")  # 5/02/26
+# The PO date has no label: it is the 4-digit-year date ending the BUYER line (3/14/2026).
 PO_DATE_RE = re.compile(r" (?P<value>\d{1,2}/\d{1,2}/\d{4})$")
 
 # One item row: three text columns, a description with spaces, then nine numbers.
 # "210 71097188  04212  NORDPEAK ASHER T CMFST GRY  149.99  49.400 ... 7.72".
 # Anchored at both ends, so a row with a missing or extra number does not match.
 ITEM_RE = re.compile(
-    r"^(?P<dept>\d{3}) +"
-    r"(?P<sku>\d+) +"
-    r"(?P<vendor_part>\S+) +"
+    r"^(?P<dept>\d{3}) +(?P<sku>\d+) +(?P<vendor_part>\S+) +"
     r"(?P<description>.+?) +"  # lazy, so it stops before the first number
-    r"(?P<retail>\d+\.\d+) +"
-    r"(?P<cost>\d+\.\d+) +"
-    r"(?P<ext_cost>\d+\.\d+) +"
-    r"(?P<cartons>\d+) +"
-    r"(?P<case_pack>\d+) +"
-    r"(?P<ext_qty>\d+) +"
-    r"(?P<cube>\d+\.\d+) +"
-    r"(?P<kilograms>\d+\.\d+)$"
+    r"(?P<retail>\d+\.\d+) +(?P<cost>\d+\.\d+) +(?P<ext_cost>\d+\.\d+) +"
+    r"(?P<cartons>\d+) +(?P<case_pack>\d+) +(?P<ext_qty>\d+) +"
+    r"(?P<cube>\d+\.\d+) +(?P<kilograms>\d+\.\d+)$"
 )
-# The UPC sits alone on the line right under its item row, indented 4 spaces:
-# "    0091120032129". Kept as text so the leading zeros survive.
+# The UPC sits alone on the line under its item row: "    0091120032129".
 UPC_RE = re.compile(r"^ {4}(?P<upc>\d{12,14})$")
-# The TOTALS numbers are not aligned under their columns, so read them in order:
+# TOTALS numbers are not aligned under their columns, so read them in order:
 # "TOTALS:  447455.120  3475  6950  119.18" = EXT COST, CTNS, EXT QTY, KILOGRAMS.
 TOTALS_RE = re.compile(
     r"^TOTALS: +(?P<ext_cost>\d+\.\d+) +(?P<cartons>\d+) +"
@@ -70,16 +58,12 @@ TOTALS_RE = re.compile(
 
 # ---------------------------------------------------------------- model
 
-
-# Frozen dataclasses: parsed data is read-only, and tests can make a changed
-# copy with dataclasses.replace. Money and weights are Decimal, not float, so
-# 49.400 x 136 equals 6718.400 exactly and the checks can use plain ==.
+# Frozen, so parsed data is read-only. Money and weights are Decimal, not float,
+# so 49.400 x 136 equals 6718.400 exactly and the checks can use plain ==.
 
 
 @dataclass(frozen=True)
 class Header:
-    """The fields printed above the item table."""
-
     po_number: str
     ref_master_po: str
     po_date: date
@@ -112,8 +96,6 @@ class LineItem:
 
 @dataclass(frozen=True)
 class Totals:
-    """The printed TOTALS line."""
-
     ext_cost: Decimal
     cartons: int
     ext_qty: int
@@ -122,8 +104,6 @@ class Totals:
 
 @dataclass(frozen=True)
 class PurchaseOrder:
-    """The whole parsed order."""
-
     header: Header
     items: tuple[LineItem, ...]
     totals: Totals
@@ -131,9 +111,7 @@ class PurchaseOrder:
 
 @dataclass(frozen=True)
 class Flag:
-    """One validation problem, tied to the cell it belongs on."""
-
-    column: str  # template column the problem belongs to
+    column: str  # the template column the problem belongs on
     message: str
 
 
@@ -141,18 +119,15 @@ class Flag:
 
 
 def parse(text: str) -> PurchaseOrder:
-    """Parse the whole purchase order text."""
     lines = text.splitlines()
     if not any(line.strip() for line in lines):
         raise ValueError("the file is empty")
-    # TOTALS first: it marks the end of the item table, so without it the item
-    # parser would run into the footer and report a confusing line instead.
+    # TOTALS first: it ends the item table, so a missing one gives a clear error.
     totals = parse_totals(lines)
     return PurchaseOrder(header=parse_header(lines), items=parse_items(lines), totals=totals)
 
 
 def parse_header(lines: list[str]) -> Header:
-    """Read the labeled fields and the three address blocks."""
     ship_to, bill_to = read_side_by_side_blocks(lines, "SHIP TO", "BILL TO")
     return Header(
         po_number=find_value(lines, PO_NUMBER_RE, "PO#"),
@@ -161,27 +136,31 @@ def parse_header(lines: list[str]) -> Header:
         ship_date=to_date(find_value(lines, SHIP_DATE_RE, "SHIP DATE"), "%m/%d/%y"),
         buyer=find_value(lines, BUYER_RE, "BUYER"),
         ship_terms=find_value(lines, SHIP_TERMS_RE, "SHIP TERMS"),
-        vendor=read_block(lines, "VENDOR"),
+        vendor=tuple(line.strip() for line in block_lines(lines, "VENDOR")),
         ship_to=ship_to,
         bill_to=bill_to,
     )
 
 
 def find_value(lines: list[str], pattern: re.Pattern, name: str) -> str:
-    """Return the 'value' group of the first line that matches."""
+    """The 'value' group of the first line that matches."""
     for line in lines:
-        match = pattern.search(line)
-        if match:
+        if match := pattern.search(line):
             return match["value"].strip()
     raise ValueError(f"header field {name} not found")
 
 
 def to_date(text: str, date_format: str) -> date:
-    """Turn a printed date like 5/02/26 into a real date."""
     try:
         return datetime.strptime(text, date_format).date()
     except ValueError:
         raise ValueError(f"{text!r} is not a valid date") from None
+
+
+def from_match(cls, match: re.Match, **extra):
+    """Build a dataclass from regex groups, each converted to its field type (int, Decimal)."""
+    values = {**match.groupdict(), **extra}
+    return cls(**{field.name: field.type(values[field.name]) for field in fields(cls)})
 
 
 def find_block_start(lines: list[str], title: str) -> int:
@@ -192,43 +171,24 @@ def find_block_start(lines: list[str], title: str) -> int:
     raise ValueError(f"block {title} not found")
 
 
-def read_block(lines: list[str], title: str) -> tuple[str, ...]:
+def block_lines(lines: list[str], title: str) -> list[str]:
     """The lines under a block's dashes, up to the first blank line."""
-    start = find_block_start(lines, title) + 2
-    block = []
-    for line in lines[start:]:
-        if not line.strip():
-            break
-        block.append(line.strip())
-    return tuple(block)
+    return list(takewhile(str.strip, lines[find_block_start(lines, title) + 2 :]))
 
 
 def read_side_by_side_blocks(
     lines: list[str], left_title: str, right_title: str
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Two blocks printed next to each other: split each line where the right title starts.
-
-    SHIP TO has one more line than BILL TO, so each side skips its blank halves.
-    """
-    title_index = find_block_start(lines, left_title)
-    split_at = lines[title_index].index(right_title)
-    left, right = [], []
-    for line in lines[title_index + 2 :]:
-        if not line.strip():
-            break
-        if line[:split_at].strip():
-            left.append(line[:split_at].strip())
-        if line[split_at:].strip():
-            right.append(line[split_at:].strip())
-    return tuple(left), tuple(right)
+    """Split each line where the right title starts; SHIP TO has one more line than BILL TO."""
+    split_at = lines[find_block_start(lines, left_title)].index(right_title)
+    rows = block_lines(lines, left_title)
+    left = tuple(row[:split_at].strip() for row in rows if row[:split_at].strip())
+    right = tuple(row[split_at:].strip() for row in rows if row[split_at:].strip())
+    return left, right
 
 
 def parse_items(lines: list[str]) -> tuple[LineItem, ...]:
-    """Every item row in the table, each paired with the UPC on the line below it.
-
-    Any non-blank line between the column headings and TOTALS that is not an
-    item row raises, so a row the regex can't read is never dropped silently.
-    """
+    """Each item row with the UPC under it. Any other non-blank line before TOTALS raises."""
     index = find_block_start(lines, "DPT") + 2  # skip the headings and dashes
     items = []
     while index < len(lines) and not lines[index].startswith("TOTALS:"):
@@ -239,42 +199,18 @@ def parse_items(lines: list[str]) -> tuple[LineItem, ...]:
         match = ITEM_RE.match(line)
         if not match:
             raise ValueError(f"line {index + 1} is not an item row: {line.strip()!r}")
-        next_line = lines[index + 1] if index + 1 < len(lines) else ""
-        upc_match = UPC_RE.match(next_line)
+        upc_match = UPC_RE.match(lines[index + 1] if index + 1 < len(lines) else "")
         if not upc_match:
             raise ValueError(f"item SKU {match['sku']} has no UPC line under it")
-        items.append(
-            LineItem(
-                dept=match["dept"],
-                sku=match["sku"],
-                upc=upc_match["upc"],
-                vendor_part=match["vendor_part"],
-                description=match["description"],
-                retail=Decimal(match["retail"]),
-                cost=Decimal(match["cost"]),
-                ext_cost=Decimal(match["ext_cost"]),
-                cartons=int(match["cartons"]),
-                case_pack=int(match["case_pack"]),
-                ext_qty=int(match["ext_qty"]),
-                cube=Decimal(match["cube"]),
-                kilograms=Decimal(match["kilograms"]),
-            )
-        )
+        items.append(from_match(LineItem, match, upc=upc_match["upc"]))
         index += 2  # the item row and its UPC line
     return tuple(items)
 
 
 def parse_totals(lines: list[str]) -> Totals:
-    """The printed TOTALS line at the bottom of the item table."""
     for line in lines:
-        match = TOTALS_RE.match(line)
-        if match:
-            return Totals(
-                ext_cost=Decimal(match["ext_cost"]),
-                cartons=int(match["cartons"]),
-                ext_qty=int(match["ext_qty"]),
-                kilograms=Decimal(match["kilograms"]),
-            )
+        if match := TOTALS_RE.match(line):
+            return from_match(Totals, match)
     raise ValueError("TOTALS line not found")
 
 
@@ -282,16 +218,11 @@ def parse_totals(lines: list[str]) -> Totals:
 
 
 def check_item(item: LineItem) -> list[Flag]:
-    """Recompute EXT QTY and EXT Cost and flag any that differ from the print.
-
-    The printed values are written as-is; the check only flags, never corrects.
-    """
+    """Recompute EXT QTY and EXT Cost. Only flags; the printed values are written as-is."""
     flags = []
     expected_qty = item.cartons * item.case_pack
     if expected_qty != item.ext_qty:
-        flags.append(
-            Flag("EXT QTY", f"printed {item.ext_qty}, CTNS x CSPK = {expected_qty}")
-        )
+        flags.append(Flag("EXT QTY", f"printed {item.ext_qty}, CTNS x CSPK = {expected_qty}"))
     expected_cost = item.cost * item.ext_qty
     if expected_cost != item.ext_cost:
         flags.append(
@@ -316,7 +247,7 @@ def check_totals(po: PurchaseOrder) -> list[str]:
 
 
 def all_flags(po: PurchaseOrder) -> list[str]:
-    """Every problem in the order, as one printable line each."""
+    """Every problem in the order, one printable line each."""
     messages = [
         f"SKU {item.sku} {flag.column}: {flag.message}"
         for item in po.items
@@ -327,23 +258,14 @@ def all_flags(po: PurchaseOrder) -> list[str]:
 
 # ---------------------------------------------------------------- write
 
-# Light red, the same fill Excel uses for its "bad" cell style.
-FLAG_FILL = PatternFill(fill_type="solid", fgColor="FFC7CE")
-# "@" is Excel's Text format. Codes like UPC 0091120032129 and vendor part 04212
-# are written as strings with this format, so Excel keeps the leading zeros.
+FLAG_FILL = PatternFill(fill_type="solid", fgColor="FFC7CE")  # Excel's "bad" cell red
+# "@" is Excel's Text format: codes like UPC 0091120032129 keep their leading zeros.
 TEXT_FORMAT = "@"
 # Columns not listed here are text. Cost has 3 decimals because the PO prints 49.400.
 NUMBER_FORMATS = {
-    "SHIP DATE": "m/d/yyyy",
-    "Retail": "0.00",
-    "Cost": "0.000",
-    "EXT Cost": "#,##0.000",
-    "CTNS": "0",
-    "CSPK": "0",
-    "EXT QTY": "0",
-    "Cube": "0.0000",
-    "Kilograms": "0.00",
-    "Total Cost": "#,##0.00",
+    "SHIP DATE": "m/d/yyyy", "Retail": "0.00", "Cost": "0.000", "EXT Cost": "#,##0.000",
+    "CTNS": "0", "CSPK": "0", "EXT QTY": "0",
+    "Cube": "0.0000", "Kilograms": "0.00", "Total Cost": "#,##0.00",
 }
 
 
@@ -385,18 +307,10 @@ def write_cell(cell, column: str, value) -> None:
         cell.alignment = Alignment(wrap_text=True, vertical="top")
 
 
-def mark_flag(cell, message: str) -> None:
-    """Show a validation problem on the cell itself: red fill plus a comment."""
-    cell.fill = FLAG_FILL
-    cell.comment = Comment(message, "po_extract")
-
-
 def write_xlsx(po: PurchaseOrder, filename: str, template: Path, output: Path) -> None:
-    """Fill a copy of the template, one row per item, and save it to output.
+    """Fill a copy of the template (keeps its header, sheet name, widths), one row per item.
 
-    Loading the template, instead of building a fresh workbook, keeps its
-    header row, sheet name and column widths exactly as given. Columns are
-    looked up by header name, so the template's order is the source of truth.
+    Columns are looked up by header name; a flag becomes a red fill plus a comment.
     """
     workbook = load_workbook(template)
     sheet = workbook["Sheet1"]
@@ -408,123 +322,90 @@ def write_xlsx(po: PurchaseOrder, filename: str, template: Path, output: Path) -
                 raise ValueError(f"template column {column!r} has no mapping")
             write_cell(sheet.cell(row, col), column, values[column])
         for flag in check_item(item):
-            mark_flag(sheet.cell(row, columns.index(flag.column) + 1), flag.message)
+            cell = sheet.cell(row, columns.index(flag.column) + 1)
+            cell.fill = FLAG_FILL
+            cell.comment = Comment(flag.message, "po_extract")
     output.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(output)
 
 
-def order_json(po: PurchaseOrder) -> dict:
-    """The order in the shape of the Next.js app's Order type."""
-    header = po.header
-    return {
-        "poNumber": header.po_number,
-        "refMasterPo": header.ref_master_po,
-        "poDate": header.po_date.isoformat(),
-        "shipDate": header.ship_date.isoformat(),
-        "buyer": header.buyer,
-        "shipTerms": header.ship_terms,
-        "vendor": list(header.vendor),
-        "shipTo": list(header.ship_to),
-        "billTo": list(header.bill_to),
-        "totalCost": float(po.totals.ext_cost),
-        "status": "pending",
-        "lines": [
-            {
-                "dept": item.dept,
-                "sku": item.sku,
-                "upc": item.upc,
-                "vendorPart": item.vendor_part,
-                "description": item.description,
-                "retail": float(item.retail),
-                "cost": float(item.cost),
-                "extCost": float(item.ext_cost),
-                "cartons": item.cartons,
-                "casePack": item.case_pack,
-                "extQty": item.ext_qty,
-                "cube": float(item.cube),
-                "kilograms": float(item.kilograms),
-            }
-            for item in po.items
-        ],
-    }
+def camel_case(record) -> dict:
+    """A dataclass as a dict keyed like the app's types: ship_to -> shipTo."""
+    result = {}
+    for name, value in asdict(record).items():
+        first, *rest = name.split("_")
+        result[first + "".join(word.title() for word in rest)] = value
+    return result
+
+
+def to_json_value(value):
+    """json.dumps fallback for the two types it can't write: Decimal and date."""
+    return float(value) if isinstance(value, Decimal) else value.isoformat()
 
 
 def write_json(po: PurchaseOrder, output: Path) -> None:
-    """Save the order as JSON (the seed for the Next.js app)."""
+    """Save the order in the shape of the Next.js app's Order type."""
+    order = {
+        **camel_case(po.header),
+        "totalCost": po.totals.ext_cost,
+        "status": "pending",
+        "lines": [camel_case(item) for item in po.items],
+    }
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(order_json(po), indent=2) + "\n", encoding="utf-8")
+    output.write_text(json.dumps(order, indent=2, default=to_json_value) + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------- main
 
+# 0 = written, all checks pass; 1 = written, but rows are flagged (so a script or
+# CI notices); 2 = the input could not be processed, with a one-line error.
+EXIT_OK, EXIT_FLAGGED, EXIT_ERROR = 0, 1, 2
+
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
-    """Command-line options. All paths default to the files in this folder."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--template", type=Path, default=DEFAULT_TEMPLATE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
-        "--json",
-        action="store_true",
-        help="also write <PO#>.json next to the output spreadsheet",
+        "--json", action="store_true", help="also write <PO#>.json next to the output spreadsheet"
     )
     return parser.parse_args(argv)
 
 
-# Exit codes: 0 = written, all checks pass; 1 = written, but rows are flagged;
-# 2 = could not process the input at all (nothing useful was written).
-EXIT_OK, EXIT_FLAGGED, EXIT_ERROR = 0, 1, 2
-
-
 def fail(message: str) -> int:
-    """Print a one-line error (no traceback) and return the error exit code."""
     print(f"error: {message}", file=sys.stderr)
     return EXIT_ERROR
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Parse, validate, write. Returns an exit code (see EXIT_* above).
-
-    The spreadsheet is still written when there are flags, so a person can
-    see the red cells. The exit code lets a script or CI notice the problem.
-    Bad input (missing file, not text, wrong layout, broken template, output
-    not writable) ends with a one-line message and exit code 2, never a traceback.
-    """
     args = parse_args(argv)
-
-    # --- read and parse ---
+    name = args.input.name
     try:
-        text = args.input.read_text(encoding="utf-8")
+        po = parse(args.input.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return fail(f"input file not found: {args.input}")
     except IsADirectoryError:
         return fail(f"input is a folder, not a file: {args.input}")
-    except UnicodeDecodeError:
-        return fail(f"{args.input.name} is not a text file (it could not be read as UTF-8)")
-    try:
-        po = parse(text)
+    except UnicodeDecodeError:  # a ValueError subclass, so it must come first
+        return fail(f"{name} is not a text file (it could not be read as UTF-8)")
     except ValueError as err:
-        return fail(f"{args.input.name} doesn't match the expected purchase order layout: {err}")
+        return fail(f"{name} doesn't match the expected purchase order layout: {err}")
 
-    # --- write ---
     try:
-        write_xlsx(po, args.input.name, args.template, args.output)
+        write_xlsx(po, name, args.template, args.output)
         if args.json:
             json_path = args.output.parent / f"{po.header.po_number}.json"
             write_json(po, json_path)
     except FileNotFoundError:
         return fail(f"template not found: {args.template}")
-    except (zipfile.BadZipFile, KeyError):
-        # openpyxl raises BadZipFile for a non-xlsx file and KeyError when Sheet1 is missing.
+    except (zipfile.BadZipFile, KeyError):  # not an xlsx / no Sheet1
         return fail(f"template is not a valid .xlsx with a Sheet1: {args.template}")
     except ValueError as err:
         return fail(f"template doesn't match: {err}")
-    except OSError as err:
-        # Covers a read-only folder, a full disk, or the file being open in Excel on Windows.
+    except OSError as err:  # read-only folder, full disk, file open in Excel
         return fail(f"could not write {err.filename or args.output}: {err.strerror}")
 
-    # --- report ---
     print(f"PO {po.header.po_number}: {len(po.items)} rows -> {args.output}")
     if args.json:
         print(f"JSON -> {json_path}")

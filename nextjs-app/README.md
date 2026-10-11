@@ -6,7 +6,7 @@ A small internal dashboard for reviewing vendor purchase orders. The list of POs
 
 | PO detail | Approved | Phone |
 |---|---|---|
-| ![PO detail](../docs/screenshots/detail.png) | ![PO approved, step tracker complete](../docs/screenshots/detail-approved.png) ![Error page with code](../docs/screenshots/error.png) | ![Phone layout](../docs/screenshots/mobile.png) |
+| ![PO detail](../docs/screenshots/detail.png) | ![Approve confirmation](../docs/screenshots/confirm.png) ![What was checked (i)](../docs/screenshots/checks-info.png) ![Error page with code](../docs/screenshots/error.png) | ![Phone layout](../docs/screenshots/mobile.png) |
 
 ## Run it
 
@@ -42,18 +42,19 @@ npm run screenshots  # regenerates the images in ../docs/screenshots
 | Next 15, App Router, TypeScript, Tailwind | `package.json`, `app/` | Next 15.5, React 19, Tailwind v4. |
 | Server-rendered list | `app/page.tsx` → `components/OrdersTable.tsx` | Async Server Components read the POs from `lib/orders.ts`. No client-side fetching; the data is in the HTML. |
 | Dynamic route | `app/orders/[poNumber]/page.tsx` → `components/OrderDetail.tsx` | One PO: header, addresses, every line item with SKU, UPC and totals. Unknown PO numbers call `notFound()` and return a real 404. |
-| Server action | `app/actions.ts` | `setReviewStatus` moves a PO between **Pending review** and **Approved**. The button sends the status it wants; the action checks the PO and the status, saves it, and revalidates the list and the detail page. |
+| Server action | `app/actions.ts` | `setReviewStatus` moves a PO between **Pending review**, **Approved** and **Needs correction** (with a note). The dialog sends the status it wants; the action checks the PO, the status and the note, saves it, and revalidates the list and the detail page. |
 | README | this file | How to run, what the action and route do, assumptions, time spent. |
 
 ## Beyond the brief
 
 Everything below is extra. The brief's five requirements are complete without it.
 
-- **Animated review flow.** `components/ReviewPanel.tsx` uses `useOptimistic`, so clicking Approve updates the badge, the button and the step tracker immediately. The connector line fills in and the check mark pops while the action runs. If saving fails, React restores the old status and the error appears under the button.
+- **A realistic review workflow, every step confirmed.** Pending review → **Approve** (released downstream) or **Send back for correction** with a required note; Needs correction → **Corrected PO received** → back to review; Approved → **Undo approval**. Each step opens a dialog showing the PO, vendor and total before anything changes. The badge and buttons update at once (`useOptimistic`) and roll back if saving fails.
+- **Plain-language checks.** Seven checks run on every PO (`lib/checks.ts`): unit counts, line costs, empty lines, cost at or above retail, lines adding up to the total, repeated items, ship date before PO date. Problems appear in red with the numbers and what to do, and pre-fill the correction note. When nothing is wrong, nothing is shown; the ⓘ button beside the status lists what was checked.
 - **List page built around faceted filtering.** Status (All / Pending review / Approved) is a filter shown as tabs. The **Filters** button opens origin, vendor and master PO checkbox groups with Select all and Clear. Each tick applies at once; values in one group combine with OR, groups combine with AND. Each group only offers values that would return POs, given the other filters and the tab, with live counts, so there are no dead ends (`lib/filters.ts`). Active filters show as removable chips, with Clear all. Everything is in the URL, so every view is a shareable link.
 - **Hierarchy: master PO → PO.** The table groups POs under their master PO (the printed "REF MASTER PO#"). Each group shows its PO count, statuses and total value, and can be collapsed. The PO page breadcrumb follows the same path, and "Ref master PO" on the document opens the list filtered to that master.
 - **Sortable table.** Click any header; sorting runs on the server from the URL. The whole row opens the PO. An empty filter result shows a friendly animated message ("No POs waiting for review. All caught up.").
-- **Detail page: the review on top, the PO as a document below.** Top: PO number, status, Approve button and step tracker, then three green/red checks that mirror the Python validator (cartons × pack = units, unit cost × units = ext cost, lines add up to the printed total; `lib/checks.ts`). Below: the purchase order laid out like the printed one a buyer or vendor knows: issuer and "PURCHASE ORDER" header, Vendor / Ship to / Bill to blocks, a terms strip (PO date, ship date, ship terms, ref master PO), the line items in the PO's own column order, and totals at the bottom right ending in the total invoice value. Names are title-cased and phone numbers formatted.
+- **Detail page: the review on top, the PO as a document below.** Top: one card with the PO number, status, the ⓘ check details, the next actions, and any problems found. Below: the purchase order laid out like the printed one a buyer or vendor knows: issuer and "PURCHASE ORDER" header, Vendor / Ship to / Bill to blocks, a terms strip (PO date, ship date, ship terms, ref master PO), the line items in the PO's own column order (sortable), and totals at the bottom right ending in the total invoice value.
 - **Only what changes reloads.** The toolbar and the table are separate `<Suspense>` parts; only the table is keyed by the filters and sort, so changing them reloads only the rows. React's `cache()` makes them share one data read per request.
 - **Loading states.** The heading renders at once and each part streams in behind an animated skeleton (`components/Skeletons.tsx`).
 - **Errors with codes.** Every error a person can see has a code and a plain message in `lib/errors.ts`, e.g. *PO-404 PO not found*, *PO-400 Status not recognised*, *PO-501 Status not saved*. Three error boundaries: the root layout (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
@@ -112,17 +113,17 @@ components/
   OrdersTable.tsx               rows for the current filter (server)
   StatusTabs.tsx                status tabs with instant highlight (client)
   OrderDetail.tsx               review panel + checks + PO document (server)
-  ReviewChecks.tsx              the three pass/fail checks
   PurchaseOrderDocument.tsx     the PO laid out like the printed document
-  ReviewPanel.tsx               title, badge, button, step tracker (client, optimistic)
-  ProcessSteps.tsx              Received → … → Ready for downstream
+  ReviewPanel.tsx               title, status, actions, confirmation dialogs (client, optimistic)
+  ChecksInfo.tsx                the ⓘ panel: what was checked
+  ReviewChecks.tsx              problems found, in red, with what to do
   Skeletons.tsx                 loading placeholders
   StatusBadge.tsx, ErrorCard.tsx, ErrorState.tsx
 lib/
   types.ts                      Order, LineItem, ReviewStatus
   orders.ts                     the only module that reads or changes data
   errors.ts                     error codes and messages
-  checks.ts                     the review checks (same rules as the Python validator)
+  checks.ts                     the seven checks, in plain words, with fixes
   filters.ts                    status + facets: URL parsing, matching, facet options
   sort.ts                       sortable columns and list URLs
   origin.ts                     port and country from the ship terms
@@ -145,6 +146,7 @@ e2e/                            Playwright tests and the screenshot script
 - **No authentication.** Anyone who can open the app can approve a PO.
 - **The action sets a status; it never flips one.** The form sends `status=approved` or `status=pending`, so it is idempotent: clicking twice, clicking from an out-of-date tab, or two reviewers at once can't turn an approval back into "pending". The last write wins; a real system would also check a version number.
 - **The status applies to the whole PO.** Approving individual lines was out of scope.
+- **No barcode check-digit check.** The sample PO's UPCs don't have valid check digits (the data is illustrative), so that rule would flag every line. It's the first check to add for real data.
 - **Light theme only.**
 - **Skeletons use `<Suspense>`, not `loading.tsx`.** A `loading.tsx` streams the response with status 200 before the page runs, which turned the unknown-PO page into a 200 instead of a 404 (an e2e test caught this). The detail page checks the PO exists before anything streams.
 - **Known `npm audit` advisories, all in tools that never reach the browser or the server at runtime:**
@@ -156,9 +158,9 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Tests
 
-- **Unit (Vitest, 43 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, phone and name formatting, each review check catching a tampered line, sorting (including junk in the URL), and faceted filtering (OR inside a facet, AND across, options limited to what returns results).
-- **Malformed input to the server action (Vitest, in the 43):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
-- **End to end (Playwright, 19 tests on desktop and a 375 px phone; a few desktop-only):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; approving from an out-of-date second tab keeps the PO approved; the step tracker moves to "Can be sent on" and back; tabs filter the list; sorting by a header and reversing it; the Filters panel offers only matching options and Select all / Clear all work; a whole row opens its PO; an empty tab shows its message; master PO groups collapse; Ref master PO and the breadcrumb lead to the master PO view; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
+- **Unit (Vitest, 56 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, phone and name formatting, each of the seven checks catching a tampered PO in plain words, the correction note, sorting (including junk in the URL), and faceted filtering (OR inside a facet, AND across, options limited to what returns results).
+- **Malformed input to the server action (Vitest, in the 56):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
+- **End to end (Playwright, 20 tests on desktop and a 375 px phone; a few desktop-only):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve asks for confirmation, Cancel changes nothing, the approval survives a reload and is counted on the list; sending back for correction requires a note, shows it, and "Corrected PO received" returns it to review; Undo approval asks for confirmation; a decision from an out-of-date tab can't undo another; the ⓘ panel lists the checks; tabs filter the list; sorting a column and reversing it; line items sort and return to printed order; the Filters panel offers only matching options and Select all / Clear all work; a whole row opens its PO; an empty tab shows its message; master PO groups collapse; Ref master PO and the breadcrumb lead to the master PO view; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page; no sideways page scroll.
 
 ## With more time
 

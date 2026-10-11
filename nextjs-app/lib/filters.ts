@@ -1,7 +1,7 @@
 /**
  * Filtering for the PO list, as faceted search.
  *
- * - Status (All / Pending review / Approved) is a filter too, shown as tabs because there is
+ * - Status (All / Pending review / Approved / Needs correction) is a filter too, shown as tabs because there is
  *   always exactly one and it is the main way people work through the list.
  * - The Filters menu has three facets: origin country, vendor, master PO. Inside a facet a PO
  *   matches any ticked value (OR); across facets and the status it must match each one (AND).
@@ -13,7 +13,7 @@
  */
 import { titleCase, vendorName, vendorNumber } from "@/lib/format";
 import { countryName, originOf } from "@/lib/origin";
-import type { Order, ReviewStatus } from "@/lib/types";
+import { reviewStatuses, type Order, type ReviewStatus } from "@/lib/types";
 
 export type Facet = "country" | "vendor" | "master";
 export const facets: Facet[] = ["country", "vendor", "master"];
@@ -35,7 +35,7 @@ function parseList(value: string | undefined, pattern: RegExp): string[] {
 /** Reads the filters from URL values. Anything that isn't a real value is ignored. */
 export function parseFilters(params: Partial<Record<"status" | Facet, string>>): ListFilters {
   return {
-    status: params.status === "pending" || params.status === "approved" ? params.status : undefined,
+    status: reviewStatuses.find((s) => s === params.status),
     country: parseList(params.country, facetDef.country.pattern),
     vendor: parseList(params.vendor, facetDef.vendor.pattern),
     master: parseList(params.master, facetDef.master.pattern),

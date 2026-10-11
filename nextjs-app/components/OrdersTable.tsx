@@ -17,7 +17,7 @@ import { SortTh, Td } from "@/components/ui/table";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrders } from "@/lib/orders";
 import { matches, type ListFilters } from "@/lib/filters";
-import type { Order } from "@/lib/types";
+import { reviewStatuses, type Order } from "@/lib/types";
 import { countryName, originOf } from "@/lib/origin";
 import { listHref, nextSort, sortOrders, type Sort, type SortKey } from "@/lib/sort";
 
@@ -28,6 +28,9 @@ function emptyMessage({ status, country, vendor, master }: Filters): { title: st
   const where = (country.length ? ` from ${country.map(countryName).join(" or ")}` : "") + (vendor.length ? " for these vendors" : "") + (master.length ? ` under master PO ${master.join(" or ")}` : "");
   if (status === "pending") {
     return { title: `No POs waiting for review${where}`, detail: "All caught up. New POs will show here.", caughtUp: true };
+  }
+  if (status === "needs_correction") {
+    return { title: `No POs waiting for a correction${where}`, detail: "Nothing has been sent back to a vendor.", caughtUp: true };
   }
   if (status === "approved") {
     return { title: `No approved POs${where} yet`, detail: "Approve a PO and it will show here.", caughtUp: false };
@@ -64,11 +67,13 @@ function groupByMaster(orders: Order[]): { master: string; orders: Order[] }[] {
   return [...groups].map(([master, list]) => ({ master, orders: list }));
 }
 
-/** "1 pending · 1 approved" for a group header. */
+/** "1 pending · 1 approved · 1 needs correction" for a group header, leaving out zeros. */
 function statusSummary(orders: Order[]): string {
-  const pending = orders.filter((o) => o.status === "pending").length;
-  const approved = orders.length - pending;
-  return [pending && `${pending} pending`, approved && `${approved} approved`].filter(Boolean).join(" · ");
+  return reviewStatuses
+    .map((status) => [status, orders.filter((o) => o.status === status).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([status, n]) => `${n} ${status.replace("_", " ")}`)
+    .join(" · ");
 }
 
 /** Header of a master PO group: number (filters to it), PO count, statuses, and total value. */

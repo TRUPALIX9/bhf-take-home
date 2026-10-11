@@ -9,6 +9,7 @@ import type { ReviewStatus } from "@/lib/types";
 const labels: Record<ReviewStatus, string> = {
   pending: "Pending review",
   approved: "Approved",
+  needs_correction: "Needs correction",
 };
 
 /** Maps a review status to its label and color. The status name doubles as the Badge tone. */

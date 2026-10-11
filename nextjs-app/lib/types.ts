@@ -4,7 +4,9 @@
  */
 
 /** Where a PO is in review: waiting for a check, or cleared for downstream systems. */
-export type ReviewStatus = "pending" | "approved";
+/** Every review status, in workflow order. */
+export const reviewStatuses = ["pending", "approved", "needs_correction"] as const;
+export type ReviewStatus = (typeof reviewStatuses)[number];
 
 /** One SKU row on a purchase order. Money is in US dollars. */
 export type LineItem = {
@@ -36,5 +38,6 @@ export type Order = {
   billTo: string[];
   totalCost: number;
   status: ReviewStatus; // status in the seed file; changes live in lib/orders.ts
+  correctionNote?: string; // what the vendor was asked to fix; set only while status is "needs_correction"
   lines: LineItem[];
 };

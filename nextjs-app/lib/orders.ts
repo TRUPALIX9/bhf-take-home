@@ -7,7 +7,7 @@
 import "server-only";
 import { cache } from "react";
 import seed from "@/data/orders.json";
-import type { Order, ReviewStatus } from "@/lib/types";
+import { reviewStatuses, type Order, type ReviewStatus } from "@/lib/types";
 
 // --- Store ---
 const orders = seed as Order[];
@@ -15,19 +15,21 @@ const orders = seed as Order[];
 // Review status is kept in memory, seeded from the JSON file. It is stored on
 // globalThis so it survives hot reloads in dev. It resets when the server
 // restarts; a database would replace this Map and nothing else.
+type Review = { status: ReviewStatus; correctionNote?: string };
 const store = globalThis as typeof globalThis & {
-  reviewStatus?: Map<string, ReviewStatus>;
+  reviewStatus?: Map<string, Review>;
 };
 
 // Builds the Map on first use (??= only assigns when it is still undefined).
-function statuses(): Map<string, ReviewStatus> {
-  store.reviewStatus ??= new Map(orders.map((o) => [o.poNumber, o.status]));
+function statuses(): Map<string, Review> {
+  store.reviewStatus ??= new Map(orders.map((o) => [o.poNumber, { status: o.status, correctionNote: o.correctionNote }]));
   return store.reviewStatus;
 }
 
-// Returns a copy with the live status, so the seed data is never mutated.
+// Returns a copy with the live status and reason, so the seed data is never mutated.
 function withCurrentStatus(order: Order): Order {
-  return { ...order, status: statuses().get(order.poNumber) ?? order.status };
+  const review = statuses().get(order.poNumber);
+  return review ? { ...order, ...review } : order;
 }
 
 // --- Simulated latency ---
@@ -69,9 +71,9 @@ export function refMasterOf(poNumber: string): string | undefined {
 }
 
 // --- Writes ---
-/** True for the two values a review status can take. Used to check form input. */
+/** True for the values a review status can take. Used to check form input. */
 export function isReviewStatus(value: unknown): value is ReviewStatus {
-  return value === "pending" || value === "approved";
+  return reviewStatuses.some((s) => s === value);
 }
 
 /**
@@ -80,10 +82,11 @@ export function isReviewStatus(value: unknown): value is ReviewStatus {
  * PO approved. A flip would undo the first click if a second tab or a second reviewer
  * clicked from a page that was out of date.
  */
-export async function setStatus(poNumber: string, status: ReviewStatus): Promise<ReviewStatus> {
+export async function setStatus(poNumber: string, status: ReviewStatus, correctionNote?: string): Promise<ReviewStatus> {
   await wait();
   if (!statuses().has(poNumber)) throw new Error(`Unknown PO ${poNumber}`);
-  statuses().set(poNumber, status);
+  // A correction note only belongs to a PO waiting for a correction; any other status clears it.
+  statuses().set(poNumber, { status, correctionNote: status === "needs_correction" ? correctionNote : undefined });
   return status;
 }
 

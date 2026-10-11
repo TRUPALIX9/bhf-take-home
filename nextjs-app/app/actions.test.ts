@@ -35,6 +35,13 @@ describe("setReviewStatus", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/orders/TX9K2QP");
   });
 
+  it("sends a PO back with a note, and a corrected PO clears it", async () => {
+    await setReviewStatus({}, form({ poNumber: "TX9K2QP", status: "needs_correction", reason: "  Wrong ship date " }));
+    expect(await getOrder("TX9K2QP")).toMatchObject({ status: "needs_correction", correctionNote: "Wrong ship date" });
+    await setReviewStatus({}, form({ poNumber: "TX9K2QP", status: "pending" }));
+    expect(await getOrder("TX9K2QP")).toMatchObject({ status: "pending", correctionNote: undefined });
+  });
+
   // --- malformed input: each one gets an error code and changes nothing ---
   it.each([
     ["no fields at all", {}, "PO-404"],
@@ -42,7 +49,10 @@ describe("setReviewStatus", () => {
     ["PO number with a path in it", { poNumber: "../../etc/passwd", status: "approved" }, "PO-404"],
     ["a file instead of a PO number", { poNumber: new Blob(["x"]), status: "approved" }, "PO-404"],
     ["missing status", { poNumber: "TX9K2QP" }, "PO-400"],
-    ["status that doesn't exist", { poNumber: "TX9K2QP", status: "rejected" }, "PO-400"],
+    ["status that doesn't exist", { poNumber: "TX9K2QP", status: "cancelled" }, "PO-400"],
+    ["correction without a note", { poNumber: "TX9K2QP", status: "needs_correction" }, "PO-422"],
+    ["correction note of only spaces", { poNumber: "TX9K2QP", status: "needs_correction", reason: "   " }, "PO-422"],
+    ["correction note of 501 characters", { poNumber: "TX9K2QP", status: "needs_correction", reason: "x".repeat(501) }, "PO-422"],
     ["status in the wrong case", { poNumber: "TX9K2QP", status: "APPROVED" }, "PO-400"],
     ["script in the status", { poNumber: "TX9K2QP", status: "<script>alert(1)</script>" }, "PO-400"],
   ])("rejects %s", async (_label, fields, code) => {

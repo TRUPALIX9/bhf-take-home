@@ -44,10 +44,10 @@ What BHF asked for in the Software Engineer, Full Stack & Automation take-home, 
 
 | Requirement | Where | Proved by (`python-po-parser/tests/test_po_extract.py`) |
 |---|---|---|
-| Extract header fields: buyer, ship terms, PO#, ref master PO#, ship date, vendor, ship to, bill to | `po_extract.py` → `parse_header`, `read_block`, `read_side_by_side_blocks` | `test_header_fields`, `test_address_blocks` |
+| Extract header fields: buyer, ship terms, PO#, ref master PO#, ship date, vendor, ship to, bill to | `po_extract.py` → `parse_header`, `block_lines`, `read_side_by_side_blocks` | `test_header_fields`, `test_address_blocks` |
 | Extract every line item, including the UPC on the line under each row | `po_extract.py` → `parse_items`, `ITEM_RE`, `UPC_RE` | `test_twelve_items_each_with_its_upc`, `test_first_row_and_edge_cases`, `test_missing_upc_raises_naming_the_sku`, `test_unreadable_item_row_raises_instead_of_being_dropped` |
 | One row per SKU, matching the template exactly, header fields on every row | `po_extract.py` → `write_xlsx`, `row_values` | `test_header_row_and_sheets_match_template`, `test_row_values`, `test_leading_zeros_preserved`, `test_unknown_template_column_raises` |
-| Recompute EXT QTY and EXT COST and flag mismatches | `po_extract.py` → `check_item`, `check_totals`, `mark_flag` | `test_sample_has_no_flags`, `test_tampered_rows_are_flagged`, `test_tampered_text_is_flagged_in_rows_and_totals`, `test_flag_lands_on_the_failing_cell`, `test_main_exit_code_one_when_flagged` |
+| Recompute EXT QTY and EXT COST and flag mismatches | `po_extract.py` → `check_item`, `check_totals`, `write_xlsx` | `test_sample_has_no_flags`, `test_tampered_rows_are_flagged`, `test_tampered_text_is_flagged_in_rows_and_totals`, `test_flag_lands_on_the_failing_cell`, `test_main_exit_code_one_when_flagged` |
 | Generated spreadsheet committed | `python-po-parser/output/purchase_order_sample.xlsx` | |
 | README: approach, assumptions, what you'd change with more time | [`python-po-parser/README.md`](../python-po-parser/README.md) | |
 | AI instruction file committed as-is | [`python-po-parser/CLAUDE.md`](../python-po-parser/CLAUDE.md) | |

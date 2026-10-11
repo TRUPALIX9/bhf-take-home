@@ -15,11 +15,13 @@ export async function OrdersToolbar({ filters }: { filters: ListFilters }) {
   const orders = await getOrders();
   // Tab counts: everything that passes the facets, split by status.
   const inView = orders.filter((o) => matches(o, { ...filters, status: undefined }));
-  const pending = inView.filter((o) => o.status === "pending").length;
+  const count = (status: string) => inView.filter((o) => o.status === status).length;
 
   return (
     <div className="flex flex-col gap-2 border-b border-line md:flex-row md:items-center md:justify-between md:pr-4">
-      <StatusTabs counts={{ all: inView.length, pending, approved: inView.length - pending }} />
+      <StatusTabs
+        counts={{ all: inView.length, pending: count("pending"), approved: count("approved"), needs_correction: count("needs_correction") }}
+      />
       <div className="px-4 pb-3 md:p-0">
         <FiltersMenu groups={facetOptions(orders, filters)} />
       </div>

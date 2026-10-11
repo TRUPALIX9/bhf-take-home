@@ -11,9 +11,10 @@
 
 import { notFound } from "next/navigation";
 import { PurchaseOrderDocument } from "@/components/PurchaseOrderDocument";
+import { ChecksInfo } from "@/components/ChecksInfo";
 import { ReviewChecks } from "@/components/ReviewChecks";
 import { ReviewPanel } from "@/components/ReviewPanel";
-import { reviewChecks } from "@/lib/checks";
+import { findProblems, problemsAsReason } from "@/lib/checks";
 import type { LineSort } from "@/lib/lineSort";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrder, getOrders } from "@/lib/orders";
@@ -25,10 +26,9 @@ export async function OrderDetail({ poNumber, lineSort }: { poNumber: string; li
   // The page already returned a real 404 via orderExists(); this only guards the type.
   if (!order) notFound();
 
-  const checks = reviewChecks(order);
+  const problems = findProblems(order);
   // How many POs share this PO's master PO, for the link on the document.
   const masterCount = (await getOrders()).filter((o) => o.refMasterPo === order.refMasterPo).length;
-  const allPass = checks.every((c) => c.ok);
 
   // --- Render ---
   return (
@@ -38,10 +38,10 @@ export async function OrderDetail({ poNumber, lineSort }: { poNumber: string; li
         poNumber={order.poNumber}
         status={order.status}
         subtitle={`${titleCase(vendorName(order))} · ${formatMoney(order.totalCost)} · ships ${formatDate(order.shipDate)}`}
-        poDate={formatDate(order.poDate)}
-        lineCount={order.lines.length}
-        totalsMatch={allPass}
-        checks={<ReviewChecks checks={checks} />}
+        correctionNote={order.correctionNote}
+        info={<ChecksInfo problems={problems} />}
+        problems={<ReviewChecks problems={problems} />}
+        suggestedNote={problems.length ? problemsAsReason(problems) : undefined}
       />
 
       {/* 2. The record: the PO as a document */}

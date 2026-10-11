@@ -38,73 +38,95 @@ test("open a PO from the list and see its line items", async ({ page }) => {
 test.describe("review status", () => {
   const po = "/orders/TX9K4MB";
 
+  /** Opens a decision's dialog, optionally types a reason, and confirms it. */
+  async function decide(page: Page, button: string, confirm: string, reason?: string) {
+    await page.getByRole("button", { name: button }).click();
+    const dialog = page.getByRole("dialog");
+    if (reason !== undefined) await dialog.getByLabel("Reason (required)").fill(reason);
+    await dialog.getByRole("button", { name: confirm }).click();
+  }
+
   // The server keeps status in memory, so always leave this PO pending,
   // even if a test fails half way.
   const resetToPending = async ({ page }: { page: Page }) => {
     await page.goto(po);
-    const moveBack = page.getByRole("button", { name: "Move back to review" });
-    if (await moveBack.isVisible()) {
-      await moveBack.click();
-      // The badge changes at once (optimistic); the button label changes when the save is done.
+    if (await page.getByRole("button", { name: "Undo approval" }).isVisible()) {
+      await decide(page, "Undo approval", "Undo approval");
+      // The badge changes at once (optimistic); the buttons change when the save is done.
+      await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
+    }
+    if (await page.getByRole("button", { name: "Corrected PO received" }).isVisible()) {
+      await decide(page, "Corrected PO received", "Review again");
+      // The badge changes at once (optimistic); the buttons change when the save is done.
       await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
     }
   };
   test.beforeEach(resetToPending);
   test.afterEach(resetToPending);
 
-  // Proves the change is saved on the server, not just shown in the browser.
-  test("approve a PO, then move it back to review", async ({ page }) => {
+  test("approving asks for confirmation, then saves", async ({ page }) => {
     const before = await approvedCount(page);
-
     await page.goto(po);
     const status = page.getByTestId("status");
+
+    // Cancel changes nothing.
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect(page.getByRole("dialog")).toContainText("Approve this PO?");
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
     await expect(status).toHaveText("Pending review");
 
-    await page.getByRole("button", { name: "Approve" }).click();
-    await expect(status).toHaveText("Approved");
-    await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
-
-    // Stored on the server: survives a reload and shows on the list.
+    // Confirm approves it, and it is stored on the server: survives a reload, counted on the list.
+    await decide(page, "Approve", "Approve PO");
+    await expect(page.getByRole("button", { name: "Undo approval" })).toBeVisible(); // saved
     await page.reload();
     await expect(status).toHaveText("Approved");
     expect(await approvedCount(page)).toBe(before + 1);
-
-    await page.goto(po);
-    await page.getByRole("button", { name: "Move back to review" }).click();
-    await expect(status).toHaveText("Pending review");
   });
 
-  // The "Review" step stops being current once the PO is approved.
+  test("sending back for correction needs a note, then the corrected PO goes back to review", async ({ page }) => {
+    await page.goto(po);
+    await page.getByRole("button", { name: "Send back for correction" }).click();
+    const dialog = page.getByRole("dialog");
+    // An empty note is refused by the form, so the dialog stays open.
+    await dialog.getByRole("button", { name: "Send back" }).click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("What needs fixing (required)").fill("Ship date doesn't match the schedule");
+    await dialog.getByRole("button", { name: "Send back" }).click();
+
+    await expect(page.getByTestId("status")).toHaveText("Needs correction");
+    await expect(page.getByText("Ship date doesn't match the schedule")).toBeVisible();
+
+    // When the fix arrives, it goes back to review (with confirmation).
+    await decide(page, "Corrected PO received", "Review again");
+    await expect(page.getByTestId("status")).toHaveText("Pending review");
+  });
+
+  test("undoing an approval asks for confirmation", async ({ page }) => {
+    await page.goto(po);
+    await decide(page, "Approve", "Approve PO");
+    await page.getByRole("button", { name: "Undo approval" }).click();
+    await expect(page.getByRole("dialog")).toContainText("no longer released downstream");
+    await page.getByRole("dialog").getByRole("button", { name: "Undo approval" }).click();
+    await expect(page.getByTestId("status")).toHaveText("Pending review");
+  });
+
   // Two tabs on the same PO. Approving in a stale tab must keep it approved, not flip it back.
-  test("a click from an out-of-date tab can't undo an approval", async ({ page, context }) => {
+  test("a decision from an out-of-date tab can't undo another", async ({ page, context }) => {
     const stale = await context.newPage();
     await stale.goto(po); // still shows "Pending review" and an Approve button
 
     await page.goto(po);
-    await page.getByRole("button", { name: "Approve" }).click();
-    await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
+    await decide(page, "Approve", "Approve PO");
+    await expect(page.getByRole("button", { name: "Undo approval" })).toBeVisible(); // saved
 
-    await stale.getByRole("button", { name: "Approve" }).click();
-    await expect(stale.getByRole("button", { name: "Move back to review" })).toBeVisible();
+    await decide(stale, "Approve", "Approve PO");
+    await expect(stale.getByRole("button", { name: "Undo approval" })).toBeVisible();
     await stale.reload();
     await expect(stale.getByTestId("status")).toHaveText("Approved");
     await stale.close();
   });
-
-  test("approving updates the step tracker", async ({ page }) => {
-    await page.goto("/orders/TX9K4MB");
-    const review = page.getByRole("listitem").filter({ hasText: "Review" }).first();
-    await expect(review).toHaveAttribute("aria-current", "step");
-
-    await page.getByRole("button", { name: "Approve" }).click();
-    await expect(page.getByRole("listitem").filter({ hasText: "Ready for downstream" })).toContainText("(done)");
-    await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
-    await expect(review).not.toHaveAttribute("aria-current", "step");
-
-    await page.getByRole("button", { name: "Move back to review" }).click();
-    await expect(review).toHaveAttribute("aria-current", "step");
-  });
 });
+
 
 // --- errors and layout ---
 
@@ -248,4 +270,11 @@ test("line items sort by a column, reverse, then go back to printed order", asyn
   await page.getByRole("link", { name: /Ext cost/ }).click(); // back to printed order
   await expect(page).toHaveURL(/\/orders\/TX9K2QP$/);
   await expect(firstSku).toContainText("71097188");
+});
+
+test("the i button explains what was checked", async ({ page }) => {
+  await page.goto("/orders/TX9K2QP");
+  await page.getByLabel("How this PO was checked").click();
+  await expect(page.getByText("All 7 checks passed")).toBeVisible();
+  await expect(page.getByText("Each line's units equal its cartons times the number per carton.")).toBeVisible();
 });

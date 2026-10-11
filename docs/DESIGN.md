@@ -36,22 +36,20 @@ flowchart TB
 
 ## 2. Purchase order lifecycle
 
-Where a PO is in the business flow. The step tracker on the detail page (`components/ProcessSteps.tsx`) shows exactly these states.
+How a PO moves through review. A reviewer isn't refusing a purchase: if something is wrong they hold the PO and ask the vendor for a corrected one. Every arrow in the app asks for confirmation first.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Received: vendor PO arrives as text
-  Received --> Parsed: po_extract.py reads header, items, UPCs
-  Parsed --> Flagged: EXT QTY / EXT COST / TOTALS mismatch
-  Parsed --> PendingReview: all checks pass
-  Flagged --> PendingReview: fixed and re-run
-  PendingReview --> Approved: reviewer clicks Approve
-  Approved --> PendingReview: reviewer clicks Move back to review
-  Approved --> ReadyForDownstream
-  ReadyForDownstream --> [*]
+  [*] --> Parsed: po_extract.py reads the vendor's PO text
+  Parsed --> PendingReview: loaded into the app
+  PendingReview --> Approved: Approve
+  PendingReview --> NeedsCorrection: Send back for correction (with a note)
+  NeedsCorrection --> PendingReview: Corrected PO received
+  Approved --> PendingReview: Undo approval
+  Approved --> [*]: released to downstream systems
 ```
 
-In the app, only `PendingReview ⇄ Approved` is stored (`ReviewStatus` in `lib/types.ts`). "Received" and "Parsed" are always done for seed data; "Parsed and checked" turns red if the lines don't add up to the PO total.
+Stored statuses (`ReviewStatus` in `lib/types.ts`): `pending`, `approved`, `needs_correction`. The correction note is kept only while a PO needs correction. Seven plain-language checks (`lib/checks.ts`) run on every PO; problems show in red on the PO page with what to do, and pre-fill the correction note.
 
 ## 3. Part A: nextjs-app
 
@@ -69,11 +67,11 @@ flowchart TD
   Toolbar --> F["lib/filters.ts<br/>matches + facetOptions"]
   Table --> F
   Detail["orders/[poNumber]/page.tsx<br/>404 check + Suspense"] --> OD["OrderDetail (server)"]
-  Steps["ProcessSteps"]
   OD --> Review["ReviewPanel (client)<br/>useOptimistic + useActionState"]
   OD --> Checks["ReviewChecks"] --> CK["lib/checks.ts<br/>same rules as po_extract.py"]
   OD --> Doc["PurchaseOrderDocument<br/>the PO as a document"]
-  Review --> Steps
+  Review --> Dlg["ui/Dialog<br/>confirmation"]
+  OD --> Info["ChecksInfo<br/>the i panel"]
   Review --> Action["app/actions.ts<br/>setReviewStatus"]
   OD --> UI["components/ui<br/>Button, Badge, Card, Th/Td, Spinner"]
   Review --> UI
@@ -118,8 +116,9 @@ sequenceDiagram
   participant BTN as ReviewPanel
   participant A as actions.ts
   participant O as lib/orders.ts
-  U->>BTN: click Approve
-  BTN->>BTN: optimistic: badge + step tracker flip, connector fills, spinner on button
+  U->>BTN: click Approve (or Send back, Undo, Corrected)
+  BTN->>BTN: confirmation dialog (PO, vendor, total); person confirms
+  BTN->>BTN: optimistic: badge and buttons change, spinner while saving
   BTN->>A: POST form data (poNumber)
   A->>O: orderExists(poNumber)
   alt unknown PO
@@ -193,7 +192,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   IN["purchase_order_sample.txt"] --> H["parse_header<br/>BUYER, SHIP TERMS, PO#, REF, dates"]
-  IN --> AD["read_block / read_side_by_side_blocks<br/>VENDOR, SHIP TO, BILL TO"]
+  IN --> AD["block_lines / read_side_by_side_blocks<br/>VENDOR, SHIP TO, BILL TO"]
   IN --> IT["parse_items"]
   IT --> ROW{"item row regex matches?"}
   ROW -- no --> ERR1["ValueError: line N is not an item row"]
@@ -229,7 +228,7 @@ flowchart LR
   all_flags --> check_totals
   write_xlsx --> row_values
   write_xlsx --> check_item
-  write_json --> order_json
+  write_json --> camel_case
 ```
 
 ### Decisions

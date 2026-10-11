@@ -12,17 +12,19 @@ import { useOptimistic, useTransition } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { filtersFromSearchParams } from "@/lib/filters";
+import { reviewStatuses } from "@/lib/types";
 import { listHref, parseSort } from "@/lib/sort";
 
 // --- Tab definitions ---
-// `as const` keeps status as the literal "pending" | "approved" | undefined.
+// `as const` keeps each status as its literal type, e.g. "pending".
 const tabs = [
   { label: "All", status: undefined },
   { label: "Pending review", status: "pending" },
   { label: "Approved", status: "approved" },
+  { label: "Needs correction", status: "needs_correction" },
 ] as const;
 
-type Counts = { all: number; pending: number; approved: number };
+type Counts = { all: number; pending: number; approved: number; needs_correction: number };
 
 /**
  * Filter links for the list. The filter lives in the URL (?status=pending).
@@ -38,7 +40,7 @@ export function StatusTabs({ counts }: { counts: Counts }) {
   const sort = parseSort(params.get("sort") ?? undefined, params.get("dir") ?? undefined);
   const { country, vendor, master } = filtersFromSearchParams(params); // facets, kept across tabs
   const menuFilters = { country, vendor, master };
-  const current = param === "pending" || param === "approved" ? param : undefined;
+  const current = reviewStatuses.find((s) => s === param);
   // `active` follows the URL, but can be set ahead of it during a transition.
   const [active, setActive] = useOptimistic(current);
   // isPending is true until the new server render for the pushed URL has arrived.

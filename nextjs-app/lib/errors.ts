@@ -19,6 +19,11 @@ export const appErrors = {
     title: "Status not recognised",
     message: "The page asked for a status that doesn't exist. Reload the page and try again.",
   },
+  reasonRequired: {
+    code: "PO-422",
+    title: "Say what needs fixing",
+    message: "Say what needs fixing (up to 500 characters), so the vendor knows what to correct.",
+  },
   statusNotSaved: {
     code: "PO-501",
     title: "Status not saved",

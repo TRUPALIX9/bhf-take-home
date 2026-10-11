@@ -67,6 +67,13 @@ describe("setStatus", () => {
     expect((await getOrder("TX9K2QP"))?.status).toBe("approved");
   });
 
+  it("keeps a correction note only while the PO needs correction", async () => {
+    await setStatus("TX9K2QP", "needs_correction", "Wrong ship date");
+    expect((await getOrder("TX9K2QP"))?.correctionNote).toBe("Wrong ship date");
+    await setStatus("TX9K2QP", "pending");
+    expect((await getOrder("TX9K2QP"))?.correctionNote).toBeUndefined();
+  });
+
   // TX9K3RA is approved in the seed, so both statuses are checked as unchanged.
   it("changes only the PO it is given", async () => {
     await setStatus("TX9K2QP", "approved");
@@ -83,10 +90,11 @@ describe("setStatus", () => {
 
 describe("isReviewStatus", () => {
   // The action uses this to reject anything else sent in the form.
-  it("accepts only the two real statuses", () => {
+  it("accepts only the three real statuses", () => {
     expect(isReviewStatus("approved")).toBe(true);
     expect(isReviewStatus("pending")).toBe(true);
-    expect(isReviewStatus("rejected")).toBe(false);
+    expect(isReviewStatus("needs_correction")).toBe(true);
+    expect(isReviewStatus("cancelled")).toBe(false);
     expect(isReviewStatus(null)).toBe(false);
   });
 });

@@ -1,42 +1,28 @@
 /**
- * The three review checks as one chip in the PO header: "✓ All 3 checks pass". Click it to
- * see each check. Server Component built on <details>, so opening needs no JavaScript.
- * If any check fails the chip turns red and starts open, so a problem is never hidden.
+ * Problems found on the PO, shown on the PO page. Server Component. Renders nothing when
+ * the PO is fine: a reviewer only needs to hear about problems. Each problem says what is
+ * wrong, with the numbers, and what to do about it.
  */
 
-import type { Check } from "@/lib/checks";
+import type { Problem } from "@/lib/checks";
 
-/** Summary chip that expands to the list of checks. */
-export function ReviewChecks({ checks }: { checks: Check[] }) {
-  const failed = checks.filter((c) => !c.ok).length;
-  const ok = failed === 0;
+/** Red alert listing each problem and its fix, or nothing. */
+export function ReviewChecks({ problems }: { problems: Problem[] }) {
+  if (problems.length === 0) return null;
   return (
-    <details open={!ok} className="group relative text-sm">
-      <summary
-        className={`inline-flex min-h-8 cursor-pointer list-none items-center gap-1.5 rounded-full px-3 font-medium [&::-webkit-details-marker]:hidden ${
-          ok ? "bg-approved-bg text-approved" : "bg-danger/10 text-danger"
-        }`}
-      >
-        <span aria-hidden>{ok ? "✓" : "✗"}</span>
-        {ok ? `All ${checks.length} checks pass` : `${failed} of ${checks.length} checks failed`}
-        <span aria-hidden className="text-xs transition-transform group-open:rotate-180">
-          ▾
-        </span>
-      </summary>
-      <ul aria-label="Review checks" className="absolute right-0 z-20 mt-2 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-1.5 rounded-lg border border-line bg-surface p-3 shadow-lg">
-        {checks.map((c) => (
-          <li key={c.label} className="flex items-start gap-2">
-            <span aria-hidden className={c.ok ? "text-approved" : "text-danger"}>
-              {c.ok ? "✓" : "✗"}
-            </span>
-            <span>
-              {c.label}
-              <span className="sr-only">{c.ok ? " (passes)" : " (fails)"}</span>
-              <span className={`ml-2 text-xs ${c.ok ? "text-muted" : "text-danger"}`}>{c.detail}</span>
-            </span>
+    <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3">
+      <p className="font-semibold text-danger">
+        {problems.length === 1 ? "1 problem to fix before approving" : `${problems.length} problems to fix before approving`}
+      </p>
+      <ul className="mt-2 flex flex-col gap-2">
+        {problems.map((p, i) => (
+          <li key={i} className="flex flex-col">
+            <span className="font-medium">{p.title}</span>
+            <span>{p.detail}</span>
+            <span className="text-sm text-muted">What to do: {p.fix}</span>
           </li>
         ))}
       </ul>
-    </details>
+    </div>
   );
 }

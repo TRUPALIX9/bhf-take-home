@@ -30,12 +30,19 @@ test("README screenshots", async ({ page }) => {
   await expect(page.getByTestId("lines-total")).toBeVisible();
   await page.screenshot({ path: `${dir}/detail.png`, fullPage: true });
 
-  // Approved state, then put it back.
+  // The "how this PO was checked" panel.
+  await page.getByLabel("How this PO was checked").click();
+  await page.screenshot({ path: `${dir}/checks-info.png`, clip: { x: 0, y: 60, width: 1280, height: 440 } });
+  await page.getByLabel("How this PO was checked").click();
+
+  // The confirmation dialog, then the approved state, then put it back.
   await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible();
-  await page.waitForTimeout(700); // let the step animation finish
-  await page.screenshot({ path: `${dir}/detail-approved.png`, clip: { x: 0, y: 0, width: 1280, height: 290 } });
-  await page.getByRole("button", { name: "Move back to review" }).click();
+  await page.screenshot({ path: `${dir}/confirm.png`, clip: { x: 240, y: 200, width: 800, height: 400 } });
+  await page.getByRole("dialog").getByRole("button", { name: "Approve PO" }).click();
+  await expect(page.getByRole("button", { name: "Undo approval" })).toBeVisible();
+  await page.screenshot({ path: `${dir}/detail-approved.png`, clip: { x: 0, y: 0, width: 1280, height: 260 } });
+  await page.getByRole("button", { name: "Undo approval" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Undo approval" }).click();
   await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
 
   await page.goto("/orders/TX9K5DC"); // fails on purpose (FAIL_PO in playwright.config.ts)
