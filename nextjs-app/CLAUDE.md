@@ -34,7 +34,7 @@ Data access is async (`await getOrders()`), like a database call. Review status 
 - Colors are `@theme` tokens in `globals.css`: surface `#FFFFFF`, inverse `#FFFFFF` (text on filled colors), ink `#1B2330`, muted `#5D6C7B`, line `#E4E9EF`, subtle `#F6F8FA`, accent `#154B98`; Pending `#8A5300` on `#FDF3E1`, Approved `#1F6B45` on `#E4F3EA`, danger `#B42318`. No literal colors in components. Every text pair is at least 4.5:1.
 - Numbers use `tabular-nums` and are right-aligned in tables. Money via `Intl.NumberFormat`; unit cost keeps 3 decimals.
 - Wordmark is text ("BHF" with a "B" tile). Do not copy BHF's logo. Seed POs use made-up brands.
-- Must work at 375px wide: stat cards go 2-up, the list becomes stacked rows, the line-item table scrolls in its own box.
+- Must work at 375px wide: the list becomes grouped cards, the Filters panel fits the screen, the line-item table scrolls in its own box.
 - Buttons are at least 44px tall, have a visible focus ring, and say what they do.
 
 ## Loading, errors and flow

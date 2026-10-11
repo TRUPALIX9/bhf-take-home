@@ -83,7 +83,7 @@ UI pieces in `components/ui/`, used everywhere instead of one-off styles:
 |---|---|
 | `Button`, `linkClass` | Approve / Move back, Try again, text links. 44 px tall, visible focus ring. While saving it shows a spinner and ignores clicks but keeps keyboard focus. |
 | `Badge` | Status pills (pending, approved) and tab counts (accent, neutral). Color changes fade. |
-| `Card` | Stat cards, order details, address blocks. |
+| `Card` | Shared container style (white, hairline border, soft shadow). |
 | `Th`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. |
 | `Spinner` | Button and tab loading indicators. |
 
@@ -156,9 +156,9 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Tests
 
-- **Unit (Vitest, 30 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, percent, phone and name formatting, and each review check catching a tampered line.
-- **Malformed input to the server action (Vitest, in the 30):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
-- **End to end (Playwright, 10 tests × desktop and 375 px phone):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; approving from an out-of-date second tab keeps the PO approved; the step tracker moves to "Can be sent on" and back; tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
+- **Unit (Vitest, 43 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, phone and name formatting, each review check catching a tampered line, sorting (including junk in the URL), and faceted filtering (OR inside a facet, AND across, options limited to what returns results).
+- **Malformed input to the server action (Vitest, in the 43):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
+- **End to end (Playwright, 19 tests on desktop and a 375 px phone; a few desktop-only):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; approving from an out-of-date second tab keeps the PO approved; the step tracker moves to "Can be sent on" and back; tabs filter the list; sorting by a header and reversing it; the Filters panel offers only matching options and Select all / Clear all work; a whole row opens its PO; an empty tab shows its message; master PO groups collapse; Ref master PO and the breadcrumb lead to the master PO view; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
 
 ## With more time
 
