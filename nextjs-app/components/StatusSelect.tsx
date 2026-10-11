@@ -13,6 +13,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import { filtersFromSearchParams } from "@/lib/filters";
 import { listHref, parseSort } from "@/lib/sort";
+import { parsePaging } from "@/lib/paginate";
 
 type Key = "all" | "pending" | "approved" | "needs_correction";
 type Counts = Record<Key, number>;
@@ -39,8 +40,10 @@ export function StatusSelect({ counts }: { counts: Counts }) {
   function choose(key: Key) {
     setOpen(false);
     // A transition keeps the current table on screen until the new one arrives.
+    // New status, back to page 1; rows per page is kept.
+    const { per } = parsePaging(undefined, params.get("per") ?? undefined);
     startTransition(() =>
-      router.push(listHref({ q, status: key === "all" ? undefined : key, country, vendor, master }, sort), {
+      router.push(listHref({ q, status: key === "all" ? undefined : key, country, vendor, master }, sort, { page: 1, per }), {
         scroll: false,
       }),
     );

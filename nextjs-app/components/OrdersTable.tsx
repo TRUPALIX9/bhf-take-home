@@ -1,6 +1,7 @@
 /**
  * The PO table on the home page. Async Server Component. app/page.tsx keys its Suspense
- * boundary by the filters and the sort, so changing any of them reloads only this part.
+ * boundary by the filters, the sort and the page, so changing any of them reloads only this part.
+ * Only the current page of rows is rendered; the Pager links to the others.
  *
  * POs are grouped under their master PO (the parent order printed as "REF MASTER PO#"):
  * a header row per master PO, its POs indented beneath. One value per cell. Ship date and total cost
@@ -16,6 +17,8 @@ import { Icon } from "@/components/ui/Icon";
 import { SortTh, Td, Th } from "@/components/ui/table";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrders } from "@/lib/orders";
+import { paginate } from "@/lib/paginate";
+import { Pager } from "@/components/Pager";
 import { matches, type ListFilters } from "@/lib/filters";
 import { reviewStatuses, type Order } from "@/lib/types";
 import { countryName, originOf } from "@/lib/origin";
@@ -76,9 +79,18 @@ function statusSummary(orders: Order[]): string {
     .join(" · ");
 }
 
-/** Header of a master PO group: number (filters to it), PO count, statuses, and total value. */
-function GroupSummary({ group, href }: { group: { master: string; orders: Order[] }; href: string }) {
-  const total = group.orders.reduce((t, o) => t + o.totalCost, 0);
+/**
+ * Header of a master PO group: number (filters to it), PO count, statuses, and total value.
+ * `all` is every matching PO in the group (not just this page), so the numbers stay true when a
+ * group is split across pages; `continued` marks a group that started on an earlier page.
+ */
+function GroupSummary({ group, all, continued, href }: {
+  group: { master: string; orders: Order[] };
+  all: Order[];
+  continued: boolean;
+  href: string;
+}) {
+  const total = all.reduce((t, o) => t + o.totalCost, 0);
   return (
     <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1">
       <span className="text-xs font-medium tracking-wide text-muted uppercase">Master PO</span>
@@ -86,7 +98,8 @@ function GroupSummary({ group, href }: { group: { master: string; orders: Order[
         {group.master}
       </Link>
       <span className="text-xs text-muted">
-        {group.orders.length} {group.orders.length === 1 ? "PO" : "POs"} · {statusSummary(group.orders)}
+        {all.length} {all.length === 1 ? "PO" : "POs"} · {statusSummary(all)}
+        {continued && " · continued"}
       </span>
       <span className="num ml-auto pr-2 text-sm font-semibold">{formatMoney(total)}</span>
     </span>
@@ -94,20 +107,32 @@ function GroupSummary({ group, href }: { group: { master: string; orders: Order[
 }
 
 /** The order rows for the current filters and sort, grouped under their master PO. */
-export async function OrdersTable({ filters, sort }: { filters: Filters; sort: Sort }) {
-  // --- Data ---
+export async function OrdersTable({
+  filters,
+  sort,
+  paging,
+}: {
+  filters: Filters;
+  sort: Sort;
+  paging: { page: number; per: number };
+}) {
+  // --- Data: filter and sort everything, then send only this page's rows ---
   const shown = sortOrders((await getOrders()).filter((o) => matches(o, filters)), sort);
-  const groups = groupByMaster(shown);
+  const page = paginate(shown, paging.page, paging.per);
+  const groups = groupByMaster(page.items);
+  // Whole groups (across all pages), for honest group totals and the "continued" mark.
+  const fullGroups = new Map(groupByMaster(shown).map((g) => [g.master, g.orders]));
+  const startedEarlier = (g: { master: string; orders: Order[] }) => fullGroups.get(g.master)![0] !== g.orders[0];
   const header = (label: string, column: SortKey, align?: "left" | "right") => (
     <SortTh
       label={label}
-      href={listHref(filters, nextSort(sort, column))}
+      href={listHref(filters, nextSort(sort, column), { page: 1, per: paging.per })}
       dir={sort.key === column ? sort.dir : undefined}
       align={align}
     />
   );
   // Link that narrows the list to one master PO, keeping the other filters and the sort.
-  const masterHref = (master: string) => listHref({ ...filters, master: [master] }, sort);
+  const masterHref = (master: string) => listHref({ ...filters, master: [master] }, sort, { page: 1, per: paging.per });
 
   // --- Render ---
   if (shown.length === 0) return <EmptyState {...filters} />;
@@ -135,7 +160,7 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
             key={g.master}
             label={`master PO ${g.master}`}
             columns={7}
-            header={<GroupSummary group={g} href={masterHref(g.master)} />}
+            header={<GroupSummary group={g} all={fullGroups.get(g.master)!} continued={startedEarlier(g)} href={masterHref(g.master)} />}
           >
             {g.orders.map((o) => {
               const { port, country: code } = originOf(o);
@@ -177,7 +202,7 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
       {/* Phones and tablets: the same groups, each a collapsible heading with its POs as cards (below lg) */}
       <div className="lg:hidden">
         {groups.map((g) => (
-          <MasterGroupSection key={g.master} label={`Master PO ${g.master}`} header={<GroupSummary group={g} href={masterHref(g.master)} />}>
+          <MasterGroupSection key={g.master} label={`Master PO ${g.master}`} header={<GroupSummary group={g} all={fullGroups.get(g.master)!} continued={startedEarlier(g)} href={masterHref(g.master)} />}>
             <ul className="divide-y divide-line border-b border-line">
               {g.orders.map((o) => (
                 <li key={o.poNumber}>
@@ -201,6 +226,8 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
           </MasterGroupSection>
         ))}
       </div>
+      {/* Pages: only shown when there is more than one, plus the rows-per-page choice */}
+      <Pager page={page} hrefFor={(n, per) => listHref(filters, sort, { page: n, per })} per={paging.per} />
     </div>
   );
 }

@@ -45,7 +45,11 @@ export function nextSort(current: Sort, key: SortKey): Sort {
 export type Filters = { q?: string; status?: string; country?: string[]; vendor?: string[]; master?: string[] };
 
 /** Builds the list URL for the filters and a sort, leaving out empty values and defaults. */
-export function listHref({ q, status, country = [], vendor = [], master = [] }: Filters, sort: Sort): string {
+export function listHref(
+  { q, status, country = [], vendor = [], master = [] }: Filters,
+  sort: Sort,
+  paging?: { page?: number; per?: number },
+): string {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (status) params.set("status", status);
@@ -56,6 +60,9 @@ export function listHref({ q, status, country = [], vendor = [], master = [] }: 
     params.set("sort", sort.key);
     params.set("dir", sort.dir);
   }
+  // Paging is added only by the pager; any other change (filter, sort) starts again at page 1.
+  if (paging?.page && paging.page > 1) params.set("page", String(paging.page));
+  if (paging?.per && paging.per !== 10) params.set("per", String(paging.per));
   const query = params.toString();
   return query ? `/?${query}` : "/";
 }

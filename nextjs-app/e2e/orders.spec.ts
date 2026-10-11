@@ -331,3 +331,32 @@ test("column headers explain themselves on hover and on keyboard focus", async (
   await page.getByText("Cartons", { exact: true }).focus();
   await expect(page.getByRole("tooltip", { name: /Number of cartons shipped/ })).toBeVisible();
 });
+
+// --- paging and units ---
+
+test("the list pages on the server, and a new filter goes back to page 1", async ({ page }) => {
+  await page.goto("/?per=2");
+  await expect(page.getByTestId("page-range")).toHaveText("1–2 of 4");
+  await page.getByRole("link", { name: "Next ›" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.getByTestId("page-range")).toHaveText("3–4 of 4");
+
+  // Changing the status keeps 2 rows per page but starts again at page 1.
+  await page.getByRole("button", { name: /^Status:/ }).click();
+  await page.getByRole("menuitemradio", { name: /Pending review/ }).click();
+  await expect(page).not.toHaveURL(/page=/);
+  await expect(page).toHaveURL(/per=2/);
+  await expect(page.getByTestId("page-range")).toHaveText("1–2 of 3");
+});
+
+test("weight and volume switch between the PO's metric units and imperial", async ({ page, isMobile }) => {
+  test.skip(isMobile, "same server-rendered table; checked once on desktop");
+  await page.goto("/orders/TX9K2QP");
+  await expect(page.getByRole("columnheader", { name: /Weight \(kg\)/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /Volume \(m³\)/ })).toBeVisible();
+  await page.getByRole("link", { name: "lb · ft³" }).click();
+  await expect(page).toHaveURL(/units=imperial/);
+  await expect(page.getByRole("columnheader", { name: /Weight \(lb\)/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /Volume \(ft³\)/ })).toBeVisible();
+  await expect(page.getByTestId("lines-total")).toHaveText("$447,455.12"); // money never converts
+});

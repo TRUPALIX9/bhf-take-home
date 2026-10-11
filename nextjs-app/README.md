@@ -52,6 +52,8 @@ Everything below is extra. The brief's five requirements are complete without it
 - **A realistic review workflow, every step confirmed.** Pending review → **Approve** (released downstream) or **Request correction** with a required note; Needs correction → **Corrected PO received** → back to review; Approved → **Revoke approval**. Each step opens a dialog showing the PO, vendor and total before anything changes. The badge and buttons update at once (`useOptimistic`) and roll back if saving fails.
 - **Plain-language checks.** Seven checks run on every PO (`lib/checks.ts`): unit counts, line costs, empty lines, cost at or above retail, lines adding up to the total, repeated items, ship date before PO date. Problems appear in red with the numbers and what to do, and pre-fill the correction note. When nothing is wrong, nothing is shown; the ⓘ button beside the status lists what was checked.
 - **List page: search, status, filters, in that order.** A search box finds POs by number, vendor, master PO, port or country, or anything on their lines (SKU, UPC, part, description). Next to it, a **Status** menu ("Status: Pending review 3 ▾") lists each status with its color and count. Then **Filters**: a tree of origin country > vendor (tick a country for everything from there, or single vendors) and a master PO list. Every group only offers options that return POs, with live counts, and active filters show as one chip per group ("Origin & vendor (2) ▾"). "Showing N of 4 purchase orders" sits under the toolbar. Everything is in the URL, so every view is a shareable link (`lib/filters.ts`).
+- **Server-side paging.** The list shows 10 POs per page (25 or 50 on request) with "1–10 of N", Previous / page numbers / Next. Filtering, sorting and slicing all happen on the server (`lib/paginate.ts`), so the browser only receives one page of rows, and `?page=` and `?per=` keep every page a shareable link. A new search, status or filter goes back to page 1 and keeps the page size. A master PO group split across two pages keeps its full count and total, and is marked "continued".
+- **Weight and volume in either unit.** The line-item headers name their units ("Weight (kg)", "Volume (m³)"), and a switch above the table (`kg · m³` | `lb · ft³`) converts the columns and the weight total on the server (`lib/units.ts`, `?units=imperial`). Money is never converted.
 - **PO page search.** A search box above the line items narrows them by SKU, UPC, part or description ("2 of 12 lines"); the totals stay those of the whole PO.
 - **Hierarchy: master PO → PO.** The table groups POs under their master PO (the printed "REF MASTER PO#"). Each group shows its PO count, statuses and total value, and can be collapsed. The PO page breadcrumb follows the same path, and "Ref master PO" on the document opens the list filtered to that master.
 - **Sorting where it helps.** Ship date (the default, earliest first) and total cost sort, on the server from the URL; status, vendor and origin are filters instead. On a PO page, line items sort by ext cost or ext qty and return to the printed order. The whole row opens the PO. An empty filter result shows a friendly animated message ("No POs waiting for review. All caught up.").
@@ -83,15 +85,17 @@ UI pieces in `components/ui/`, used everywhere instead of one-off styles:
 
 | Piece | Used for |
 |---|---|
-| `Button`, `linkClass` | Approve / Move back, Try again, text links. 44 px tall, visible focus ring. While saving it shows a spinner and ignores clicks but keeps keyboard focus. |
-| `Badge` | Status pills (pending, approved) and tab counts (accent, neutral). Color changes fade. |
+| `Button`, `linkClass` | Approve, Request correction, Revoke approval, Try again, text links. 44 px tall, visible focus ring. While saving it shows a spinner and ignores clicks but keeps keyboard focus. |
+| `Badge` | Status pills (pending review, approved, needs correction), with an optional trailing ⓘ. Color changes fade. |
+| `Dialog` | Confirmation for every review decision (native `<dialog>`, so focus and Escape work for free). |
+| `Icon` | A few inline SVG line icons (check, info, filter, alert, search, copy, chevron); no icon library. |
 | `Card` | Shared container style (white, hairline border, soft shadow). |
-| `Th`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. |
+| `Th`, `SortTh`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. Headers can carry a tooltip (`hint`) that opens on hover and keyboard focus. |
 | `Spinner` | Button and tab loading indicators. |
 
 Motion is short (200–500 ms) and every animation is wrapped in `motion-safe:`, so it is off for people who ask their system for reduced motion.
 
-**Measured** with Lighthouse on the production build: `/` scores Performance 98, Accessibility 100, Best Practices 100; `/orders/TX9K2QP` scores 97, 100, 100. First Load JS is about 120 kB per page, most of it Next.js and React themselves.
+**Measured** with Lighthouse on the production build (before the latest list redesign): `/` scores Performance 98, Accessibility 100, Best Practices 100; `/orders/TX9K2QP` scores 97, 100, 100. First Load JS is about 120 kB per page, most of it Next.js and React themselves.
 
 ## File map
 
@@ -107,12 +111,13 @@ app/
     not-found.tsx               PO-404
     error.tsx                   PO-500
 components/
-  ui/                           Button, Badge, Card, Th/Td, Spinner
+  ui/                           Button, Badge, Card, Dialog, Icon, Th/Td, Spinner
   OrdersToolbar.tsx             search, status, Filters, result count (server)
   FiltersMenu.tsx               the Filters panel and chips (client)
   MasterGroup.tsx               collapsible master PO group (client)
-  OrdersTable.tsx               rows for the current filter (server)
-  StatusSelect.tsx              status menu with colors, meanings and counts (client)
+  OrdersTable.tsx               rows for the current filter and page (server)
+  Pager.tsx                     "1–10 of N", page links, rows per page (server)
+  StatusSelect.tsx              status menu with colors and counts (client)
   SearchBox.tsx                 search box kept in the URL (client)
   OrderDetail.tsx               review panel + checks + PO document (server)
   PurchaseOrderDocument.tsx     the PO laid out like the printed document
@@ -128,6 +133,9 @@ lib/
   checks.ts                     the seven checks, in plain words, with fixes
   filters.ts                    status + facets: URL parsing, matching, facet options
   sort.ts                       sortable columns and list URLs
+  paginate.ts                   page and page size from the URL, one page of rows
+  lineSort.ts                   line-item sort and search on a PO page
+  units.ts                      kg/m³ (as printed) or lb/ft³
   origin.ts                     port and country from the ship terms
   format.ts                     money, dates, totals
 data/orders.json                seed data
@@ -149,6 +157,9 @@ e2e/                            Playwright tests and the screenshot script
 - **The action sets a status; it never flips one.** The form sends `status=approved` or `status=pending`, so it is idempotent: clicking twice, clicking from an out-of-date tab, or two reviewers at once can't turn an approval back into "pending". The last write wins; a real system would also check a version number.
 - **The status applies to the whole PO.** Approving individual lines was out of scope.
 - **No barcode check-digit check.** The sample PO's UPCs don't have valid check digits (the data is illustrative), so that rule would flag every line. It's the first check to add for real data.
+- **Weight is kilograms per carton.** The PO's column heading says KILOGRAMS, so the unit is printed. It doesn't say per what; 7.72 kg fits one carton of two comforters, while 7.72 kg for all 68 cartons of a line would be about 0.11 kg each. So it is read as per carton. The PO's TOTALS kilograms (119.18) is just the column added up, not a shipment weight, so the total is labelled "Weight column total".
+- **Volume (CUBE) is cubic metres per carton.** The PO prints no unit. It is a volume, not an area (m²). 0.0991 m³ is a carton about 46 cm on each side, which fits two comforters; cubic feet would be a carton about 14 cm a side. The tooltip on the header says this is a reading, not a printed fact.
+- **Page size is 10, 25 or 50.** Other `?per=` values between 1 and 100 work too; anything else falls back to 10. A page past the end shows the last page.
 - **Light theme only.**
 - **Skeletons use `<Suspense>`, not `loading.tsx`.** A `loading.tsx` streams the response with status 200 before the page runs, which turned the unknown-PO page into a 200 instead of a 404 (an e2e test caught this). The detail page checks the PO exists before anything streams.
 - **Known `npm audit` advisories, all in tools that never reach the browser or the server at runtime:**
@@ -160,14 +171,13 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Tests
 
-- **Unit (Vitest, 61 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, phone and name formatting, each of the seven checks catching a tampered PO in plain words, the correction note, sorting (including junk in the URL), and faceted filtering (OR inside a facet, AND across, options limited to what returns results).
-- **Malformed input to the server action (Vitest, in the 61):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
-- **End to end (Playwright, 22 tests on desktop and a 375 px phone; a few desktop-only):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve asks for confirmation, Cancel changes nothing, the approval survives a reload and is counted on the list; requesting a correction requires a note, shows it, and "Corrected PO received" returns it to review; Revoke approval asks for confirmation; a decision from an out-of-date tab can't undo another; the ⓘ panel lists the checks; the status menu filters the list; searching the list by what is on a PO, and a PO's lines by SKU or description; sorting a column and reversing it; line items sort and return to printed order; the Filters panel offers only matching options and Select all / Clear all work; a whole row opens its PO; an empty tab shows its message; master PO groups collapse; Ref master PO and the breadcrumb lead to the master PO view; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page; no sideways page scroll.
+- **Unit (Vitest, 65 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, phone and name formatting, each of the seven checks catching a tampered PO in plain words, the correction note, sorting and paging (including junk in the URL), unit conversion, and faceted filtering (OR inside a facet, AND across, options limited to what returns results).
+- **Malformed input to the server action (Vitest, in the 65):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
+- **End to end (Playwright, 25 tests on desktop and a 375 px phone; a few desktop-only):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve asks for confirmation, Cancel changes nothing, the approval survives a reload and is counted on the list; requesting a correction requires a note, shows it, and "Corrected PO received" returns it to review; Revoke approval asks for confirmation; a decision from an out-of-date tab can't undo another; the ⓘ panel lists the checks; the status menu filters the list; searching the list by what is on a PO, and a PO's lines by SKU or description; sorting a column and reversing it; line items sort and return to printed order; the Filters panel offers only matching options and Select all / Clear all work; a whole row opens its PO; an empty tab shows its message; master PO groups collapse; Ref master PO and the breadcrumb lead to the master PO view; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page; paging keeps the page size and a new status goes back to page 1; weight and volume switch to lb and ft³; header tooltips open on hover and focus; no sideways page scroll.
 
 ## With more time
 
 - Persist status in SQLite or Postgres, and record who approved and when.
-- Search by PO number or vendor.
 - Show the Python validation flags on the detail page.
 - Sign-in, so approvals are tied to a person.
 

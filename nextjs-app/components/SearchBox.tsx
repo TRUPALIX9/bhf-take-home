@@ -30,6 +30,7 @@ export function SearchBox({ param, label, placeholder }: { param: string; label:
     const next = new URLSearchParams(params.toString());
     if (value.trim()) next.set(param, value.trim());
     else next.delete(param);
+    next.delete("page"); // a new search starts on page 1 (rows per page is kept)
     const query = next.toString();
     startTransition(() => router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false }));
   }

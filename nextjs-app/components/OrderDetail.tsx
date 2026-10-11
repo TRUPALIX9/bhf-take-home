@@ -16,11 +16,22 @@ import { ReviewChecks } from "@/components/ReviewChecks";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { findProblems, problemsAsReason } from "@/lib/checks";
 import type { LineSort } from "@/lib/lineSort";
+import type { Units } from "@/lib/units";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrder, getOrders } from "@/lib/orders";
 
 /** Everything on the PO page below the breadcrumb. Streams in behind OrderDetailSkeleton. */
-export async function OrderDetail({ poNumber, lineSort, find }: { poNumber: string; lineSort: LineSort; find?: string }) {
+export async function OrderDetail({
+  poNumber,
+  lineSort,
+  find,
+  units,
+}: {
+  poNumber: string;
+  lineSort: LineSort;
+  find?: string;
+  units: Units;
+}) {
   // --- Data ---
   const order = await getOrder(poNumber);
   // The page already returned a real 404 via orderExists(); this only guards the type.
@@ -46,7 +57,7 @@ export async function OrderDetail({ poNumber, lineSort, find }: { poNumber: stri
       />
 
       {/* 2. The record: the PO as a document */}
-      <PurchaseOrderDocument order={order} masterCount={masterCount} lineSort={lineSort} find={find} />
+      <PurchaseOrderDocument order={order} masterCount={masterCount} lineSort={lineSort} find={find} units={units} />
     </div>
   );
 }

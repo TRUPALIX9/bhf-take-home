@@ -3,10 +3,10 @@
 /**
  * "Filters" button in the PO list toolbar, and the chips for what is filtered.
  *
- * The panel is laid out the way a person thinks about it:
+ * The panel is laid out the way a person thinks about it, master PO first (the parent order):
+ *   Master PO: a list.
  *   Origin & vendor: a tree, country > the vendors that ship from it. Ticking a country takes
  *     everything from there; ticking some vendors shows the country as partly ticked.
- *   Master PO: a list.
  * The server sends only options that would return POs (lib/filters.ts filterOptions), with counts.
  * Every tick applies at once.
  *
@@ -27,6 +27,7 @@ import {
   type FacetOption,
 } from "@/lib/filters";
 import { listHref, parseSort } from "@/lib/sort";
+import { parsePaging } from "@/lib/paginate";
 
 type Selection = { country: string[]; vendor: string[]; master: string[] };
 const empty: Selection = { country: [], vendor: [], master: [] };
@@ -222,8 +223,10 @@ export function FiltersMenu({ options }: { options: Options }) {
   /** Updates the ticks at once, then loads the filtered list in a transition. */
   function apply(next: Selection) {
     setSel(next);
+    // New filters, back to page 1; rows per page is kept.
+    const { per } = parsePaging(undefined, params.get("per") ?? undefined);
     startTransition(() =>
-      router.push(listHref({ q: applied.q, status: applied.status, ...next }, sort), {
+      router.push(listHref({ q: applied.q, status: applied.status, ...next }, sort, { page: 1, per }), {
         scroll: false,
       }),
     );
@@ -360,9 +363,44 @@ export function FiltersMenu({ options }: { options: Options }) {
             aria-label="Filter purchase orders"
             className="absolute top-full right-0 z-30 mt-2 flex max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-y-auto rounded-xl border border-line bg-surface p-4 shadow-lg motion-safe:animate-appear"
           >
+            {/* Master PO: a flat list */}
+            <fieldset className="flex flex-col" aria-label="Master PO">
+              <GroupHeading
+                title="Master PO"
+                onAll={() =>
+                  apply({
+                    ...sel,
+                    master: options.master
+                      .filter((m) => m.count > 0)
+                      .map((m) => m.value),
+                  })
+                }
+                onClear={() => apply({ ...sel, master: [] })}
+                allDisabled={options.master
+                  .filter((m) => m.count > 0)
+                  .every((m) => sel.master.includes(m.value))}
+                clearDisabled={sel.master.length === 0}
+              />
+              {options.master.map((m) => (
+                <TreeCheckbox
+                  key={m.value}
+                  checked={sel.master.includes(m.value)}
+                  onChange={() =>
+                    apply({
+                      ...sel,
+                      master: sel.master.includes(m.value)
+                        ? sel.master.filter((x) => x !== m.value)
+                        : [...sel.master, m.value],
+                    })
+                  }
+                  label={m.label}
+                  count={m.count}
+                />
+              ))}
+            </fieldset>
+
             {/* Origin & vendor: country > vendors */}
-            <fieldset className="flex flex-col">
-              <legend className="sr-only">Origin and vendor</legend>
+            <fieldset className="flex flex-col" aria-label="Origin and vendor">
               <GroupHeading
                 title="Origin & vendor"
                 onAll={() =>
@@ -413,43 +451,6 @@ export function FiltersMenu({ options }: { options: Options }) {
                   </div>
                 );
               })}
-            </fieldset>
-
-            {/* Master PO: a flat list */}
-            <fieldset className="flex flex-col">
-              <legend className="sr-only">Master PO</legend>
-              <GroupHeading
-                title="Master PO"
-                onAll={() =>
-                  apply({
-                    ...sel,
-                    master: options.master
-                      .filter((m) => m.count > 0)
-                      .map((m) => m.value),
-                  })
-                }
-                onClear={() => apply({ ...sel, master: [] })}
-                allDisabled={options.master
-                  .filter((m) => m.count > 0)
-                  .every((m) => sel.master.includes(m.value))}
-                clearDisabled={sel.master.length === 0}
-              />
-              {options.master.map((m) => (
-                <TreeCheckbox
-                  key={m.value}
-                  checked={sel.master.includes(m.value)}
-                  onChange={() =>
-                    apply({
-                      ...sel,
-                      master: sel.master.includes(m.value)
-                        ? sel.master.filter((x) => x !== m.value)
-                        : [...sel.master, m.value],
-                    })
-                  }
-                  label={m.label}
-                  count={m.count}
-                />
-              ))}
             </fieldset>
 
             <div className="flex items-center justify-between border-t border-line pt-3">

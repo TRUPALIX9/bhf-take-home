@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import { findLines, lineSortHref, nextLineSort, sortLines, type LineSort, type LineSortKey } from "@/lib/lineSort";
 import { SearchBox } from "@/components/SearchBox";
+import { formatVolume, formatWeight, unitLabels, type Units } from "@/lib/units";
 import type { Order } from "@/lib/types";
 
 /** Small uppercase label used for every field name on the document, as on a printed form. */
@@ -50,22 +51,25 @@ export function PurchaseOrderDocument({
   masterCount,
   lineSort,
   find,
+  units,
 }: {
   order: Order;
   masterCount: number;
   lineSort: LineSort;
   find?: string; // line search text (?find=)
+  units: Units; // metric (as printed) or imperial (?units=imperial)
 }) {
   // --- Data ---
   const totals = lineTotals(order.lines);
   const lines = sortLines(findLines(order.lines, find), lineSort);
+  const unit = unitLabels(units);
   // Sortable header for a line-item column; clicking cycles sorted, reversed, printed order.
   const sortTh = (label: string, key: LineSortKey, align?: "left" | "right", hint?: string) => (
     <SortTh
       dense
       label={label}
       hint={hint}
-      href={lineSortHref(order.poNumber, nextLineSort(lineSort, key), find)}
+      href={lineSortHref(order.poNumber, nextLineSort(lineSort, key), find, units)}
       dir={lineSort?.key === key ? lineSort.dir : undefined}
       align={align}
     />
@@ -133,6 +137,21 @@ export function PurchaseOrderDocument({
         <div className="w-full sm:w-80">
           <SearchBox param="find" label="Search line items" placeholder="SKU, UPC, part or description…" />
         </div>
+        {/* Units switch: plain links, so the server renders the converted table. */}
+        <span className="flex items-center gap-1 text-sm" role="group" aria-label="Units">
+          <span className="text-muted">Units</span>
+          {(["metric", "imperial"] as const).map((u) => (
+            <Link
+              key={u}
+              href={lineSortHref(order.poNumber, lineSort, find, u)}
+              scroll={false}
+              aria-current={u === units ? "true" : undefined}
+              className={`rounded-md px-2 py-1 ${u === units ? "bg-accent-soft font-semibold text-accent" : "text-muted hover:bg-subtle"}`}
+            >
+              {u === "metric" ? "kg · m³" : "lb · ft³"}
+            </Link>
+          ))}
+        </span>
         <span className="text-xs text-muted" data-testid="line-count">
           {lines.length === order.lines.length ? `${order.lines.length} lines` : `${lines.length} of ${order.lines.length} lines`}
         </span>
@@ -155,8 +174,16 @@ export function PurchaseOrderDocument({
               <Th dense align="right" hint="Number of cartons shipped (CTNS)">Cartons</Th>
               <Th dense align="right" hint="Units packed in each carton (CSPK, case pack)">Per carton</Th>
               {sortTh("Units", "extQty", "right", "Cartons × per carton: total units on this line (EXT QTY)")}
-              <Th dense align="right" hint="Space one carton takes, as printed on the PO (CUBE)">Volume</Th>
-              <Th dense align="right" hint="Weight of one carton in kilograms, as printed on the PO (KILOGRAMS)">Weight</Th>
+              <Th
+                dense
+                align="right"
+                hint="Space one carton takes (CUBE on the PO). The PO prints no unit; 0.0991 fits cubic metres for one carton (about 46 cm a side), so it's read as m³ per carton."
+              >{`Volume (${unit.volume})`}</Th>
+              <Th
+                dense
+                align="right"
+                hint="KILOGRAMS on the PO. The PO doesn't say per what; 7.72 kg fits one carton of two comforters (not all 68), so it's read as per carton."
+              >{`Weight (${unit.weight})`}</Th>
             </tr>
           </thead>
           <tbody>
@@ -186,10 +213,10 @@ export function PurchaseOrderDocument({
                 <Td dense align="right">{l.casePack}</Td>
                 <Td dense align="right">{formatCount(l.extQty)}</Td>
                 <Td dense align="right" className="text-muted">
-                  {l.cube.toFixed(4)}
+                  {formatVolume(l.cube, units)}
                 </Td>
                 <Td dense align="right" className="text-muted">
-                  {l.kilograms.toFixed(2)}
+                  {formatWeight(l.kilograms, units)}
                 </Td>
               </tr>
             ))}
@@ -204,8 +231,9 @@ export function PurchaseOrderDocument({
           <dd className="num text-right">{formatCount(totals.cartons)}</dd>
           <dt className="text-muted">Total units</dt>
           <dd className="num text-right">{formatCount(totals.extQty)}</dd>
-          <dt className="text-muted">Total kilograms</dt>
-          <dd className="num text-right">{totals.kilograms.toFixed(2)}</dd>
+          {/* As printed: the PO's own total just adds the per-carton weights. */}
+          <dt className="text-muted">Weight column total ({unit.weight})</dt>
+          <dd className="num text-right">{formatWeight(totals.kilograms, units)}</dd>
           <dt className="mt-2 border-t border-line pt-2 font-semibold">Total invoice value</dt>
           {/* The printed total; the checks above confirm the lines add up to it. */}
           <dd className="num mt-2 border-t border-line pt-2 text-right text-lg font-semibold" data-testid="lines-total">

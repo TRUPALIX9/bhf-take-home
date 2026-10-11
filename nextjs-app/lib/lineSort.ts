@@ -39,14 +39,15 @@ export function nextLineSort(current: LineSort, key: LineSortKey): LineSort {
   return undefined; // back to printed order
 }
 
-/** URL for the PO page with a line sort (none = printed order), keeping a line search if there is one. */
-export function lineSortHref(poNumber: string, sort: LineSort, find?: string): string {
+/** URL for the PO page with a line sort (none = printed order), keeping the line search and units. */
+export function lineSortHref(poNumber: string, sort: LineSort, find?: string, units?: string): string {
   const params = new URLSearchParams();
   if (sort) {
     params.set("lines", sort.key);
     params.set("dir", sort.dir);
   }
   if (find) params.set("find", find);
+  if (units && units !== "metric") params.set("units", units);
   const query = params.toString();
   return query ? `/orders/${poNumber}?${query}` : `/orders/${poNumber}`;
 }
