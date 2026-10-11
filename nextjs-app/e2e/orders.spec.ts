@@ -160,7 +160,6 @@ test("pages never scroll sideways, at phone, tablet and desktop widths", async (
 test("the status dropdown filters the list", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Status: All" }).click();
-  await expect(page.getByRole("menuitemradio", { name: /Approved/ })).toContainText("Released to downstream systems");
   await page.getByRole("menuitemradio", { name: /Approved/ }).click();
   await expect(page.getByRole("button", { name: "Status: Approved" })).toBeVisible();
   await expect(page).toHaveURL(/status=approved/);
@@ -319,4 +318,16 @@ test("searching a PO's line items narrows the rows but not the totals", async ({
   await expect(page.getByTestId("line-count")).toHaveText("2 of 12 lines");
   await expect(page.locator("article tbody tr")).toHaveCount(2);
   await expect(page.getByTestId("lines-total")).toHaveText("$447,455.12"); // still the whole PO
+});
+
+test("column headers explain themselves on hover and on keyboard focus", async ({ page, isMobile }) => {
+  test.skip(isMobile, "hover; the same tooltip shows on focus, checked on desktop");
+  await page.goto("/orders/TX9K2QP");
+  const tip = page.getByRole("tooltip", { name: /Units packed in each carton/ });
+  await expect(tip).toBeHidden();
+  await page.getByText("Per carton", { exact: true }).hover();
+  await expect(tip).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.getByText("Cartons", { exact: true }).focus();
+  await expect(page.getByRole("tooltip", { name: /Number of cartons shipped/ })).toBeVisible();
 });

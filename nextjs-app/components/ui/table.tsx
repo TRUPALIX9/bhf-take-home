@@ -4,17 +4,38 @@
  */
 
 import Link from "next/link";
+import { useId } from "react";
 
 type Align = "left" | "right";
 
-/** A header's text. With a `hint`, it gets a dotted underline and the hint as a tooltip
- *  (and as screen-reader text), for headers that need explaining. */
-function HeaderLabel({ label, hint }: { label: string; hint?: string }) {
+/**
+ * A header's text. With a `hint`, it gets a dotted underline and a tooltip that shows at once on
+ * hover or keyboard focus (a native `title` shows late and never on focus). The tooltip is linked
+ * with aria-describedby, so screen readers read it, and it is hidden (not just transparent) until
+ * shown, so it doesn't end up in copied text. Right-aligned headers open their tooltip to the left,
+ * so it stays inside the table.
+ */
+function HeaderLabel({ label, hint, align = "left" }: { label: string; hint?: string; align?: Align }) {
+  const id = useId();
   if (!hint) return <>{label}</>;
   return (
-    <span title={hint} className="cursor-help underline decoration-dotted decoration-line-strong underline-offset-4">
-      {label}
-      <span className="sr-only">: {hint}</span>
+    <span className="group/tip relative inline-flex">
+      <span
+        tabIndex={0}
+        aria-describedby={id}
+        className="cursor-help underline decoration-dotted decoration-line-strong underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        {label}
+      </span>
+      <span
+        id={id}
+        role="tooltip"
+        className={`invisible absolute top-full z-20 mt-2 w-56 rounded-md bg-ink px-3 py-2 text-left text-xs font-normal whitespace-normal text-inverse opacity-0 shadow-lg transition-opacity group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100 ${
+          align === "right" ? "right-0" : "left-0"
+        }`}
+      >
+        {hint}
+      </span>
     </span>
   );
 }
@@ -34,9 +55,9 @@ export function Th({
   return (
     <th
       scope="col"
-      className={`${dense ? "px-2.5" : "px-4"} py-3 font-medium whitespace-nowrap text-muted ${align === "right" ? "text-right" : "text-left"}`}
+      className={`${dense ? "px-2.5" : "px-4"} py-3 font-semibold whitespace-nowrap text-ink ${align === "right" ? "text-right" : "text-left"}`}
     >
-      {hint && typeof children === "string" ? <HeaderLabel label={children} hint={hint} /> : children}
+      {hint && typeof children === "string" ? <HeaderLabel label={children} hint={hint} align={align} /> : children}
     </th>
   );
 }
@@ -87,16 +108,16 @@ export function SortTh({
     <th
       scope="col"
       aria-sort={ariaSort}
-      className={`${dense ? "px-2.5" : "px-4"} py-3 font-medium ${align === "right" ? "text-right" : "text-left"}`}
+      className={`${dense ? "px-2.5" : "px-4"} py-3 font-semibold ${align === "right" ? "text-right" : "text-left"}`}
     >
       <Link
         href={href}
         scroll={false}
-        className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-ink ${dir ? "text-ink" : "text-muted"} ${
+        className={`inline-flex items-center gap-1 whitespace-nowrap text-ink hover:text-accent ${
           align === "right" ? "flex-row-reverse" : ""
         }`}
       >
-        <HeaderLabel label={label} hint={hint} />
+        <HeaderLabel label={label} hint={hint} align={align} />
         <span aria-hidden className={dir ? "text-accent" : "text-line-strong"}>
           {dir ? (dir === "asc" ? "↑" : "↓") : "↕"}
         </span>

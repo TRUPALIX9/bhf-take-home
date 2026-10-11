@@ -149,14 +149,14 @@ export function PurchaseOrderDocument({
               <Th dense hint="Our item number (SKU) and the barcode number (UPC) under it">SKU / UPC</Th>
               <Th dense hint="The vendor's own number for this item (VENDOR PART#)">Vendor part</Th>
               <Th dense>Description</Th>
-              <Th dense align="right" hint="Price the item sells for in store (RETAIL)">Retail price</Th>
+              <Th dense align="right" hint="Price the item sells for in store (RETAIL)">Retail</Th>
               <Th dense align="right" hint="What we pay the vendor for one unit (COST)">Unit cost</Th>
               {sortTh("Line cost", "extCost", "right", "Unit cost × units: what this line costs (EXT COST)")}
               <Th dense align="right" hint="Number of cartons shipped (CTNS)">Cartons</Th>
               <Th dense align="right" hint="Units packed in each carton (CSPK, case pack)">Per carton</Th>
               {sortTh("Units", "extQty", "right", "Cartons × per carton: total units on this line (EXT QTY)")}
-              <Th dense align="right" hint="Space one carton takes, as printed on the PO (CUBE)">Carton volume</Th>
-              <Th dense align="right" hint="Weight of one carton in kilograms, as printed on the PO (KILOGRAMS)">Carton kg</Th>
+              <Th dense align="right" hint="Space one carton takes, as printed on the PO (CUBE)">Volume</Th>
+              <Th dense align="right" hint="Weight of one carton in kilograms, as printed on the PO (KILOGRAMS)">Weight</Th>
             </tr>
           </thead>
           <tbody>
