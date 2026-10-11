@@ -7,7 +7,7 @@
  *
  * The workflow, as it works with vendor POs:
  *   Pending review ── Approve ──────────────────────────► Approved (released downstream)
- *   Pending review ── Send back for correction (note) ──► Needs correction
+ *   Pending review ── Request correction (note) ────────► Needs correction
  *   Needs correction ── Corrected PO received ──────────► Pending review
  *   Approved ── Revoke approval ────────────────────────► Pending review
  * Every step asks for confirmation first.
@@ -18,6 +18,7 @@ import { setReviewStatus, type ReviewActionState } from "@/app/actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
+import { Icon } from "@/components/ui/Icon";
 import type { ReviewStatus } from "@/lib/types";
 
 type Decision = "approve" | "correction" | "corrected" | "revoke";
@@ -32,9 +33,9 @@ const decisions: Record<Decision, { status: ReviewStatus; title: string; body?: 
   },
   correction: {
     status: "needs_correction",
-    title: "Send back for correction?",
-    body: "The PO is held until a corrected one arrives. Say what needs fixing.",
-    confirm: "Send back",
+    title: "Request a corrected PO?",
+    body: "The PO is held until the vendor sends a corrected one. Say what needs fixing.",
+    confirm: "Request correction",
   },
   corrected: {
     status: "pending",
@@ -107,14 +108,8 @@ export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, 
                 <StatusBadge
                   status={shown}
                   trailing={
-                    <span
-                      aria-hidden
-                      className={`grid size-4 place-items-center rounded-full border text-[0.6rem] font-bold ${
-                        hasProblems ? "border-danger text-danger" : "border-current opacity-70"
-                      }`}
-                    >
-                      i
-                    </span>
+                    // A drawn icon, not the letter "i", so the status reads (and copies) as "Pending review".
+                    <Icon name="info" className={`size-3.5 ${hasProblems ? "text-danger" : "opacity-70"}`} />
                   }
                 />
               </summary>
@@ -132,7 +127,7 @@ export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, 
             {shown === "pending" && (
               <>
                 <Button variant="danger" pending={isPending} onClick={() => setDecision("correction")}>
-                  Send back for correction
+                  Request correction
                 </Button>
                 <Button pending={isPending} onClick={() => setDecision("approve")}>
                   Approve
@@ -161,7 +156,7 @@ export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, 
       {/* What the vendor was asked to fix, while the PO waits for the correction. */}
       {shown === "needs_correction" && status === "needs_correction" && correctionNote && (
         <div className="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3">
-          <p className="font-medium text-danger">Sent back for correction</p>
+          <p className="font-medium text-danger">Correction requested</p>
           <p className="whitespace-pre-line">{correctionNote}</p>
         </div>
       )}

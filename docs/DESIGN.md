@@ -43,7 +43,7 @@ stateDiagram-v2
   [*] --> Parsed: po_extract.py reads the vendor's PO text
   Parsed --> PendingReview: loaded into the app
   PendingReview --> Approved: Approve
-  PendingReview --> NeedsCorrection: Send back for correction (with a note)
+  PendingReview --> NeedsCorrection: Request correction (with a note)
   NeedsCorrection --> PendingReview: Corrected PO received
   Approved --> PendingReview: Undo approval
   Approved --> [*]: released to downstream systems
@@ -117,7 +117,7 @@ sequenceDiagram
   participant BTN as ReviewPanel
   participant A as actions.ts
   participant O as lib/orders.ts
-  U->>BTN: click Approve (or Send back, Undo, Corrected)
+  U->>BTN: click Approve (or Request correction, Revoke, Corrected)
   BTN->>BTN: confirmation dialog (PO, vendor, total); person confirms
   BTN->>BTN: optimistic: badge and buttons change, spinner while saving
   BTN->>A: POST form data (poNumber)

@@ -10,8 +10,8 @@ type Variant = "primary" | "secondary" | "danger" | "danger-solid";
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-inverse hover:bg-accent-dark aria-disabled:bg-accent/80",
   secondary: "border border-line-strong bg-surface text-ink hover:bg-subtle",
-  danger: "border border-danger/40 bg-surface text-danger hover:bg-danger/5", // Send back for correction
-  "danger-solid": "bg-danger text-inverse hover:bg-danger/90", // confirm sending back
+  danger: "border border-danger/40 bg-surface text-danger hover:bg-danger/5", // Request correction
+  "danger-solid": "bg-danger text-inverse hover:bg-danger/90", // confirm a correction request
 };
 
 /** Button look for a <Link>, so links and buttons in one row match. */

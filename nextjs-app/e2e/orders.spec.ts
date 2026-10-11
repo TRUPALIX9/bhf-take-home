@@ -87,15 +87,15 @@ test.describe("review status", () => {
     expect(await approvedCount(page)).toBe(before + 1);
   });
 
-  test("sending back for correction needs a note, then the corrected PO goes back to review", async ({ page }) => {
+  test("requesting a correction needs a note, then the corrected PO goes back to review", async ({ page }) => {
     await page.goto(po);
-    await page.getByRole("button", { name: "Send back for correction" }).click();
+    await page.getByRole("button", { name: "Request correction" }).click();
     const dialog = page.getByRole("dialog");
     // An empty note is refused by the form, so the dialog stays open.
-    await dialog.getByRole("button", { name: "Send back" }).click();
+    await dialog.getByRole("button", { name: "Request correction" }).click();
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("What needs fixing (required)").fill("Ship date doesn't match the schedule");
-    await dialog.getByRole("button", { name: "Send back" }).click();
+    await dialog.getByRole("button", { name: "Request correction" }).click();
 
     await expect(page.getByTestId("status")).toHaveText("Needs correction");
     await expect(page.getByText("Ship date doesn't match the schedule")).toBeVisible();

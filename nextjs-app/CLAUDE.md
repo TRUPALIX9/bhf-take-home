@@ -44,7 +44,7 @@ Data access is async (`await getOrders()`), like a database call. Review status 
 - `FAIL_PO=<po>` makes `getOrder` throw for that PO. Playwright sets it to `TX9K5DC` to test the error boundary. Never set it anywhere else.
 - Every user-facing error has a code and a plain message in `lib/errors.ts` (PO-400, PO-404, PO-500, PO-501, APP-500, APP-503). Boundaries: `app/global-error.tsx` (root layout), `app/error.tsx` (any page), `app/orders/[poNumber]/error.tsx` (one PO). All use `components/ErrorState.tsx`, which logs the error and shows the code and Next's digest.
 - The server action never throws to the client: it returns `{ error: AppError }`, shown under the button.
-- Review workflow: Pending review → Approve | Send back for correction (note required); Needs correction → Corrected PO received → Pending review; Approved → Revoke approval. Every step asks for confirmation in `components/ui/Dialog.tsx`.
+- Review workflow: Pending review → Approve | Request correction (note required); Needs correction → Corrected PO received → Pending review; Approved → Revoke approval. Every step asks for confirmation in `components/ui/Dialog.tsx`.
 - `lib/checks.ts` holds seven plain-language checks. Show problems only when there are some; the ⓘ panel lists all checks.
 
 ## Quality bar (check before submitting)
