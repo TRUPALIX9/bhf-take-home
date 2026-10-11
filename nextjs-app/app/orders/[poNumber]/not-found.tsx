@@ -1,22 +1,20 @@
 /**
  * 404 page for /orders/[poNumber]. Server Component.
  * Rendered when page.tsx calls notFound(); the response keeps its 404 status.
+ * Amber, not red: a wrong PO number is usually a typo or an old link, not a failure.
  */
 import Link from "next/link";
-import { linkClass } from "@/components/ui/Button";
+import { ErrorCard } from "@/components/ErrorCard";
+import { buttonClass } from "@/components/ui/Button";
 import { appErrors } from "@/lib/errors";
 
-/** "PO not found" message with the PO-404 code and a link back to the list. */
+/** "PO not found" card with the PO-404 code and a way back to the list. */
 export default function OrderNotFound() {
-  const { code, title, message } = appErrors.poNotFound;
   return (
-    <div className="flex flex-col items-start gap-2 py-10">
-      <p className="font-mono text-xs text-muted">Error {code}</p>
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <p className="text-muted">{message}</p>
-      <Link href="/" className={`mt-2 ${linkClass}`}>
+    <ErrorCard appError={appErrors.poNotFound} icon="search" tone="pending">
+      <Link href="/" className={buttonClass("primary")}>
         Back to purchase orders
       </Link>
-    </div>
+    </ErrorCard>
   );
 }

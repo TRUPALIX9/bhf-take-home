@@ -7,12 +7,12 @@ export const appErrors = {
   poNotFound: {
     code: "PO-404",
     title: "PO not found",
-    message: "There is no purchase order with that number. Check the PO number and try again.",
+    message: "There is no purchase order with that number. Check the number, or pick the PO from the list.",
   },
   orderLoadFailed: {
     code: "PO-500",
     title: "This purchase order could not load",
-    message: "The rest of the app still works. Try again, or go back to the list and open a different PO.",
+    message: "Something went wrong while loading this PO. The rest of the app still works. Try again, or open a different PO from the list.",
   },
   invalidStatus: {
     code: "PO-400",
@@ -27,12 +27,12 @@ export const appErrors = {
   pageFailed: {
     code: "APP-500",
     title: "This page could not load",
-    message: "Something went wrong on our side. Try again; if it keeps failing, restart the server.",
+    message: "Something went wrong while loading this page. It's not something you did. Try again in a moment.",
   },
   appFailed: {
     code: "APP-503",
     title: "The app could not start",
-    message: "Something failed while loading the app. Try again; if it keeps failing, restart the server.",
+    message: "Something went wrong while starting the app. It's not something you did. Try again in a moment.",
   },
 } as const; // as const keeps the literal strings, so AppError is exact.
 

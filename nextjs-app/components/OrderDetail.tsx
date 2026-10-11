@@ -14,7 +14,7 @@ import { ReviewChecks } from "@/components/ReviewChecks";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { reviewChecks } from "@/lib/checks";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
-import { getOrder } from "@/lib/orders";
+import { getOrder, getOrders } from "@/lib/orders";
 
 /** Everything on the PO page below the breadcrumb. Streams in behind OrderDetailSkeleton. */
 export async function OrderDetail({ poNumber }: { poNumber: string }) {
@@ -24,6 +24,8 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
   if (!order) notFound();
 
   const checks = reviewChecks(order);
+  // How many POs share this PO's master PO, for the link on the document.
+  const masterCount = (await getOrders()).filter((o) => o.refMasterPo === order.refMasterPo).length;
   const allPass = checks.every((c) => c.ok);
 
   // --- Render ---
@@ -41,7 +43,7 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
       <ReviewChecks checks={checks} />
 
       {/* 2. The record: the PO as a document */}
-      <PurchaseOrderDocument order={order} />
+      <PurchaseOrderDocument order={order} masterCount={masterCount} />
     </div>
   );
 }

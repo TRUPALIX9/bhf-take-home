@@ -1,5 +1,5 @@
 /**
- * Suspense fallbacks for the list page (SummarySkeleton, TableSkeleton) and the PO page
+ * Suspense fallbacks for the list page (ToolbarSkeleton, TableSkeleton) and the PO page
  * (OrderDetailSkeleton). Server Components: plain markup, no state.
  * Each one has the same layout as the content it stands in for, so nothing jumps when data arrives.
  * The bars pulse unless reduced motion is on.
@@ -20,20 +20,6 @@ function Loading({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-/** Four placeholder stat cards, same grid as the real StatCard row. */
-function StatRow() {
-  return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {[0, 1, 2, 3].map((i) => (
-        <Card key={i} className="gap-2">
-          <span className={`${bar} h-3.5 w-24`} />
-          <span className={`${bar} h-7 w-32`} />
-          <span className={`${bar} h-3 w-20`} />
-        </Card>
-      ))}
-    </div>
-  );
-}
 
 /** Placeholder table rows. Each bar's pulse starts a little later, so the pulse ripples across. */
 function Rows({ count, columns }: { count: number; columns: number }) {
@@ -56,21 +42,20 @@ function Rows({ count, columns }: { count: number; columns: number }) {
 
 // --- Exported skeletons ---
 
-/** Fallback for OrdersSummary: stat cards plus the tab row. */
-export function SummarySkeleton() {
+/** Tabs on the left and origin chips on the right, while the counts load. */
+export function ToolbarSkeleton() {
   return (
-    <Loading label="Loading order summary">
-      <StatRow />
-      <div className="flex gap-4 border-b border-line pb-3">
+    <div className="flex items-center justify-between gap-4 border-b border-line px-4 py-4">
+      <span className="flex gap-4">
         <span className={`${bar} h-5 w-16`} />
         <span className={`${bar} h-5 w-32`} />
         <span className={`${bar} h-5 w-24`} />
-      </div>
-    </Loading>
+      </span>
+      <span className={`${bar} hidden h-7 w-56 md:block`} />
+    </div>
   );
 }
 
-/** Fallback for OrdersTable. Shown again each time the status tab changes. */
 export function TableSkeleton() {
   return (
     <Loading label="Loading purchase orders">

@@ -17,8 +17,14 @@ test("README screenshots", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 
   await page.goto("/");
-  await expect(page.getByTestId("approved-count")).toBeVisible();
+  await expect(page.locator("tbody tr, ul li").filter({ visible: true }).first()).toBeVisible();
   await page.screenshot({ path: `${dir}/list.png` });
+
+  // The Filters panel open, with one origin ticked.
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await page.getByRole("dialog").getByLabel(/^China/).check();
+  await page.screenshot({ path: `${dir}/filters.png`, clip: { x: 0, y: 0, width: 1280, height: 560 } });
+  await page.keyboard.press("Escape");
 
   await page.goto("/orders/TX9K2QP");
   await expect(page.getByTestId("lines-total")).toBeVisible();
@@ -38,7 +44,7 @@ test("README screenshots", async ({ page }) => {
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  await expect(page.getByTestId("approved-count")).toBeVisible();
+  await expect(page.locator("tbody tr, ul li").filter({ visible: true }).first()).toBeVisible();
   await page.screenshot({ path: `${dir}/mobile.png` });
 });
 

@@ -1,19 +1,21 @@
 "use client";
 
 /**
- * Body shared by app/error.tsx, app/global-error.tsx and the PO page's error.tsx.
- * Client Component: Next requires error boundaries to be client code, and it uses
- * useEffect plus the reset() callback Next passes in.
+ * Body of the error boundaries (app/error.tsx, app/global-error.tsx,
+ * app/orders/[poNumber]/error.tsx). Client Component: Next.js renders error boundaries
+ * in the browser, and the copy button needs the clipboard.
  */
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { Button, linkClass } from "@/components/ui/Button";
+import { useEffect, useState } from "react";
+import { ErrorCard } from "@/components/ErrorCard";
+import { Button, buttonClass } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import type { AppError } from "@/lib/errors";
 
 /**
- * Shared body for the error boundaries. Logs the error, shows a plain message
- * with its code, and offers a retry plus a way back to the list.
+ * Logs the error, shows the shared error card with Try again and Back, and the
+ * reference number with a copy button so it can be pasted into a support message.
  */
 export function ErrorState({
   appError,
@@ -24,29 +26,48 @@ export function ErrorState({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  // Log once per error, after render, so logging never runs during rendering.
+  const [copied, setCopied] = useState(false);
+
+  // Log once per error so the real message is in the browser console for developers.
   useEffect(() => {
     console.error(`[${appError.code}]`, error);
   }, [appError.code, error]);
 
+  // Copies "APP-500 / 2048564588"; the digest matches the entry in the server log.
+  async function copyReference() {
+    try {
+      await navigator.clipboard.writeText(`${appError.code} / ${error.digest}`);
+      setCopied(true);
+    } catch {
+      // Clipboard can be blocked; the reference is still on screen to copy by hand.
+    }
+  }
+
   return (
-    <div className="flex flex-col items-start gap-2 py-10">
-      <p className="font-mono text-xs text-muted">Error {appError.code}</p>
-      <h1 className="text-2xl font-semibold tracking-tight">{appError.title}</h1>
-      <p role="alert" className="max-w-prose text-muted">
-        {appError.message}
-      </p>
-      {error.digest && (
-        // In production Next hides the real message; the digest matches the server log.
-        <p className="font-mono text-xs text-muted">Reference {error.digest}</p>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-4">
-        {/* reset() re-renders the segment that failed, without a full page reload. */}
+    <ErrorCard appError={appError} icon="alert" tone="danger">
+      <div className="flex flex-wrap justify-center gap-3">
         <Button onClick={reset}>Try again</Button>
-        <Link href="/" className={linkClass}>
+        <Link href="/" className={buttonClass("secondary")}>
           Back to purchase orders
         </Link>
       </div>
-    </div>
+      {/* In production Next hides the real message; this reference finds it in the server log. */}
+      {error.digest && (
+        <div className="flex w-full items-center justify-between gap-3 rounded-lg bg-subtle px-4 py-2.5 text-left">
+          <span className="flex flex-col">
+            <span className="text-xs text-muted">Reference for support</span>
+            <span className="font-mono text-sm">{error.digest}</span>
+          </span>
+          <button
+            type="button"
+            onClick={copyReference}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-accent hover:bg-accent-soft"
+          >
+            <Icon name="copy" className="size-4" />
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      )}
+    </ErrorCard>
   );
 }

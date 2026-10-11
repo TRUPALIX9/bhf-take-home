@@ -7,7 +7,6 @@ import {
   formatAddressLine,
   formatDate,
   formatMoney,
-  formatPercent,
   formatUnitCost,
   lineTotals,
   splitCode,
@@ -62,9 +61,4 @@ describe("readable text", () => {
     expect(splitCode("JORDAN MILLER")).toEqual({ name: "JORDAN MILLER" });
   });
 
-  it("formats shares as whole percents, with <1% for tiny ones", () => {
-    expect(formatPercent(0.6612)).toBe("66%");
-    expect(formatPercent(0.004)).toBe("<1%");
-    expect(formatPercent(0)).toBe("0%");
-  });
 });

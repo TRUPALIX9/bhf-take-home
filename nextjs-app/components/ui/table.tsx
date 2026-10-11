@@ -8,7 +8,7 @@ type Align = "left" | "right";
 /** Header cell. scope="col" tells screen readers which column each data cell belongs to. */
 export function Th({ children, align = "left" }: { children: React.ReactNode; align?: Align }) {
   return (
-    <th scope="col" className={`px-3 py-2.5 font-medium whitespace-nowrap text-muted ${align === "right" ? "text-right" : "text-left"}`}>
+    <th scope="col" className={`px-4 py-3 font-medium whitespace-nowrap text-muted ${align === "right" ? "text-right" : "text-left"}`}>
       {children}
     </th>
   );
@@ -29,6 +29,6 @@ export function Td({
   // Right-aligned cells hold numbers, so their digits line up.
   const alignment = align === "right" ? "num text-right" : "";
   return (
-    <td className={`px-3 py-3 ${alignment} ${mono ? "font-mono" : ""} ${className}`}>{children}</td>
+    <td className={`px-4 py-3 ${alignment} ${mono ? "font-mono" : ""} ${className}`}>{children}</td>
   );
 }

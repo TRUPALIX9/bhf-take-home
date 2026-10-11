@@ -5,6 +5,8 @@
  * Server Component, no hooks. Used by OrderDetail.
  */
 
+import Link from "next/link";
+import { linkClass } from "@/components/ui/Button";
 import { Td, Th } from "@/components/ui/table";
 import {
   formatAddressLine,
@@ -41,18 +43,28 @@ function AddressBlock({ label, lines }: { label: string; lines: string[] }) {
 }
 
 /** The whole PO as a document card. */
-export function PurchaseOrderDocument({ order }: { order: Order }) {
+export function PurchaseOrderDocument({ order, masterCount }: { order: Order; masterCount: number }) {
   // --- Data ---
   const totals = lineTotals(order.lines);
   const buyer = splitCode(order.buyer); // "610 JORDAN MILLER": 610 is the buyer code
   // The PO is issued by the bill-to party: "331 MERIDIAN SOURCING CO. INC." -> "Meridian Sourcing Co. Inc."
   const issuer = titleCase(splitCode(order.billTo[0]).name);
 
-  const terms = [
+  const terms: [string, React.ReactNode][] = [
     ["PO date", formatDate(order.poDate)],
     ["Ship date", formatDate(order.shipDate)],
     ["Ship terms", order.shipTerms],
-    ["Ref master PO", order.refMasterPo],
+    [
+      "Ref master PO",
+      // The master PO is the parent order this PO belongs to. It has no document of its own
+      // ("for reference only" on the PO), so the link lists every PO that shares it.
+      <Link key="master" href={`/?master=${order.refMasterPo}`} className={linkClass}>
+        {order.refMasterPo}
+        <span className="ml-1.5 text-xs font-normal text-muted">
+          {masterCount} {masterCount === 1 ? "PO" : "POs"} →
+        </span>
+      </Link>,
+    ],
   ];
 
   // --- Render ---

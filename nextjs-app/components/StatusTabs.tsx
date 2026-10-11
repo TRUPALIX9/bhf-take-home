@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Status filter tabs above the PO table (rendered by OrdersSummary).
+ * Status filter tabs above the PO table (rendered by OrdersToolbar).
  * Client Component: it reads the URL and handles clicks. The clicked tab highlights
  * at once (useOptimistic) and only the table below reloads.
  */
@@ -11,6 +11,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
+import { filtersFromSearchParams } from "@/lib/filters";
+import { listHref, parseSort } from "@/lib/sort";
 
 // --- Tab definitions ---
 // `as const` keeps status as the literal "pending" | "approved" | undefined.
@@ -30,7 +32,12 @@ type Counts = { all: number; pending: number; approved: number };
 export function StatusTabs({ counts }: { counts: Counts }) {
   // --- URL and optimistic state ---
   // Unknown values (?status=foo) show the full list, so treat them as "All".
-  const param = useSearchParams().get("status");
+  const params = useSearchParams();
+  const param = params.get("status");
+  // Switching tabs keeps the current sort and the Filters-menu filters.
+  const sort = parseSort(params.get("sort") ?? undefined, params.get("dir") ?? undefined);
+  const { country, vendor, master } = filtersFromSearchParams(params);
+  const menuFilters = { country, vendor, master };
   const current = param === "pending" || param === "approved" ? param : undefined;
   // `active` follows the URL, but can be set ahead of it during a transition.
   const [active, setActive] = useOptimistic(current);
@@ -41,11 +48,15 @@ export function StatusTabs({ counts }: { counts: Counts }) {
   // --- Render ---
   // Real <Link>s, so tabs work without JS and can be opened in a new tab.
   return (
-    <nav aria-label="Filter by status" className="flex gap-0.5 overflow-x-auto border-b border-line sm:gap-1">
+    // Scrolls sideways on a narrow phone, with the scroll bar hidden (the tabs fit on wider screens).
+    <nav
+      aria-label="Filter by status"
+      className="flex gap-0.5 overflow-x-auto overflow-y-hidden px-2 [scrollbar-width:none] sm:gap-1 [&::-webkit-scrollbar]:hidden"
+    >
       {tabs.map((tab) => {
         const isActive = tab.status === active;
         const count = counts[tab.status ?? "all"];
-        const href = tab.status ? `/?status=${tab.status}` : "/";
+        const href = listHref({ ...menuFilters, status: tab.status }, sort);
         return (
           <Link
             key={tab.label}
@@ -63,7 +74,7 @@ export function StatusTabs({ counts }: { counts: Counts }) {
               });
             }}
             aria-current={isActive ? "page" : undefined}
-            className={`-mb-px flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-2 font-medium whitespace-nowrap sm:px-3 transition-colors ${
+            className={`flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-2 font-medium whitespace-nowrap sm:px-3 transition-colors ${
               isActive ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"
             }`}
           >

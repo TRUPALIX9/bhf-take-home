@@ -36,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     // The font classes only define the CSS variables; font-sans on <body> applies them.
     <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
       <body className="font-sans text-sm antialiased">
-        <header className="border-b border-line">
+        <header className="border-b border-line bg-surface">
           <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               {/* Decorative logo mark; the "BHF" text next to it is the accessible name. */}

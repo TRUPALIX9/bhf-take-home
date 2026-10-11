@@ -1,98 +1,170 @@
 /**
- * The PO list on the home page. Async Server Component.
- * app/page.tsx keys its Suspense boundary by the filter, so changing tabs remounts
- * only this part; the summary above stays on screen.
+ * The PO table on the home page. Async Server Component. app/page.tsx keys its Suspense
+ * boundary by the filters and the sort, so changing any of them reloads only this part.
  *
- * Columns, in reading order: which PO and its status, who it is from and where, when it
- * ships, how big it is. The vendor's origin sits under its name, and each total has a bar
- * showing its share of everything on order, so the big POs stand out without reading digits.
+ * One value per cell. Every column but "Ships from" sorts by clicking its header, and the
+ * whole row opens the PO. Sorting and filtering happen on the server from the URL, so
+ * the header links are plain links.
  */
 
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { linkClass } from "@/components/ui/Button";
-import { Meter } from "@/components/ui/Meter";
-import { Td, Th } from "@/components/ui/table";
-import { formatDate, formatMoney, formatPercent, titleCase, vendorName } from "@/lib/format";
+import { Icon } from "@/components/ui/Icon";
+import { Td } from "@/components/ui/table";
+import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrders } from "@/lib/orders";
-import type { ReviewStatus } from "@/lib/types";
+import { matches, type ListFilters } from "@/lib/filters";
+import { countryName, originOf } from "@/lib/origin";
+import { listHref, nextSort, sortOrders, type Sort, type SortKey } from "@/lib/sort";
 
-/** The order list for one filter. The only part that reloads when the tab changes. */
-export async function OrdersTable({ filter }: { filter?: ReviewStatus }) {
+type Filters = ListFilters;
+
+/** Column header that links to the same list sorted by this column. */
+function SortHeader({
+  label,
+  column,
+  sort,
+  filters,
+  align = "left",
+}: {
+  label: string;
+  column: SortKey;
+  sort: Sort;
+  filters: Filters;
+  align?: "left" | "right";
+}) {
+  const active = sort.key === column;
+  // aria-sort tells screen readers which column is sorted and which way.
+  const ariaSort = active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined;
+  return (
+    <th scope="col" aria-sort={ariaSort} className={`px-4 py-3 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
+      <Link
+        href={listHref(filters, nextSort(sort, column))}
+        scroll={false}
+        className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-ink ${
+          active ? "text-ink" : "text-muted"
+        } ${align === "right" ? "flex-row-reverse" : ""}`}
+      >
+        {label}
+        {/* Arrow shows the current direction; a faint pair marks a column you can sort by. */}
+        <span aria-hidden className={active ? "text-accent" : "text-line-strong"}>
+          {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </Link>
+    </th>
+  );
+}
+
+/** What to say when the filters leave no rows. */
+function emptyMessage({ status, country, vendor, master }: Filters): { title: string; detail: string; caughtUp: boolean } {
+  const where = (country.length ? ` from ${country.map(countryName).join(" or ")}` : "") + (vendor.length ? " for these vendors" : "") + (master ? ` under master PO ${master}` : "");
+  if (status === "pending") {
+    return { title: `No POs waiting for review${where}`, detail: "All caught up. New POs will show here.", caughtUp: true };
+  }
+  if (status === "approved") {
+    return { title: `No approved POs${where} yet`, detail: "Approve a PO and it will show here.", caughtUp: false };
+  }
+  return { title: `No POs${where}`, detail: "Try other filters.", caughtUp: false };
+}
+
+/** Friendly empty state with a small pop-in animation (off when reduced motion is on). */
+function EmptyState(filters: Filters) {
+  const { title, detail, caughtUp } = emptyMessage(filters);
+  return (
+    <div role="status" className="flex flex-col items-center gap-3 px-4 py-14 text-center motion-safe:animate-fade-in">
+      <span
+        className={`grid size-12 place-items-center rounded-full motion-safe:animate-pop ${
+          caughtUp ? "bg-approved-bg text-approved" : "bg-subtle text-muted"
+        }`}
+      >
+        <Icon name={caughtUp ? "check" : "search"} className="size-6" />
+      </span>
+      <span className="font-semibold">{title}</span>
+      <span className="text-muted">{detail}</span>
+      <Link href={listHref({}, { key: "ship", dir: "asc" })} className={`${linkClass} text-sm`}>
+        Show all purchase orders
+      </Link>
+    </div>
+  );
+}
+
+/** The order rows for the current filters and sort. */
+export async function OrdersTable({ filters, sort }: { filters: Filters; sort: Sort }) {
   // --- Data ---
-  const orders = await getOrders();
-  const shown = filter ? orders.filter((o) => o.status === filter) : orders;
-  // Shares are of everything on order, so the bars mean the same thing on every tab.
-  const grandTotal = orders.reduce((t, o) => t + o.totalCost, 0);
-  const shareOf = (total: number) => total / grandTotal;
-  // Bars are scaled to the largest PO so differences are easy to see; the % text is the true share.
-  const largest = Math.max(...orders.map((o) => o.totalCost));
+  const shown = sortOrders((await getOrders()).filter((o) => matches(o, filters)), sort);
+  const header = (label: string, column: SortKey, align?: "left" | "right") => (
+    <SortHeader label={label} column={column} sort={sort} filters={filters} align={align} />
+  );
 
   // --- Render ---
-  if (shown.length === 0) {
-    return <p className="py-10 text-center text-muted">No orders with this status.</p>;
-  }
+  if (shown.length === 0) return <EmptyState {...filters} />;
 
   return (
     <div className="motion-safe:animate-fade-in">
       {/* Desktop: table (hidden below md) */}
       <table className="hidden w-full md:table">
         <caption className="sr-only">Purchase orders</caption>
-        <thead>
-          <tr className="border-b border-line">
-            <Th>PO number</Th>
-            <Th>Status</Th>
-            <Th>Vendor</Th>
-            <Th>Ship date</Th>
-            <Th align="right">Lines</Th>
-            <Th align="right">Total cost</Th>
+        <thead className="border-b border-line bg-subtle">
+          <tr>
+            {header("PO number", "po")}
+            {header("Status", "status")}
+            {header("Vendor", "vendor")}
+            <th scope="col" className="px-4 py-3 text-left font-medium whitespace-nowrap text-muted">
+              Ships from
+            </th>
+            {header("Ship date", "ship")}
+            {header("Lines", "lines", "right")}
+            {header("Total cost", "total", "right")}
           </tr>
         </thead>
-        <tbody>
-          {shown.map((o) => (
-            <tr key={o.poNumber} className="border-b border-line transition-colors hover:bg-subtle">
-              <Td mono>
-                <Link href={`/orders/${o.poNumber}`} className={linkClass}>
-                  {o.poNumber}
-                </Link>
-              </Td>
-              <Td>
-                <StatusBadge status={o.status} />
-              </Td>
-              <Td>
-                <span className="block font-medium whitespace-nowrap">{titleCase(vendorName(o))}</span>
-                <span className="block text-xs text-muted">{o.shipTerms}</span>
-              </Td>
-              <Td className="whitespace-nowrap">{formatDate(o.shipDate)}</Td>
-              <Td align="right">{o.lines.length}</Td>
-              <Td align="right" className="w-52">
-                <span className="block font-medium">{formatMoney(o.totalCost)}</span>
-                {/* Share of all orders: the bar, then the same number as text */}
-                <span className="mt-1.5 flex items-center gap-2">
-                  <Meter share={o.totalCost / largest} label={`${formatPercent(shareOf(o.totalCost))} of all orders by value`} />
-                  <span className="w-9 shrink-0 text-xs text-muted">{formatPercent(shareOf(o.totalCost))}</span>
-                </span>
-              </Td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-line">
+          {shown.map((o) => {
+            const { port, country: code } = originOf(o);
+            return (
+              // The PO link is stretched over the whole row (after:absolute inset-0), so a click
+              // anywhere opens the PO, while keyboard and screen readers still get one real link.
+              <tr key={o.poNumber} className="relative cursor-pointer transition-colors hover:bg-accent-soft/50">
+                <Td mono>
+                  <Link
+                    href={`/orders/${o.poNumber}`}
+                    className={`${linkClass} after:absolute after:inset-0 after:content-['']`}
+                  >
+                    {o.poNumber}
+                  </Link>
+                </Td>
+                <Td>
+                  <StatusBadge status={o.status} />
+                </Td>
+                <Td className="font-medium whitespace-nowrap">{titleCase(vendorName(o))}</Td>
+                <Td className="whitespace-nowrap text-muted">
+                  {port}
+                  {code && `, ${countryName(code)}`}
+                </Td>
+                <Td className="whitespace-nowrap">{formatDate(o.shipDate)}</Td>
+                <Td align="right">{o.lines.length}</Td>
+                <Td align="right" className="font-semibold">
+                  {formatMoney(o.totalCost)}
+                </Td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
       {/* Phone: one row per order (hidden from md up); the whole row is the link */}
-      <ul className="flex flex-col md:hidden">
+      <ul className="divide-y divide-line md:hidden">
         {shown.map((o) => (
-          <li key={o.poNumber} className="border-b border-line">
-            <Link href={`/orders/${o.poNumber}`} className="flex flex-col gap-1.5 py-3">
+          <li key={o.poNumber}>
+            <Link href={`/orders/${o.poNumber}`} className="flex flex-col gap-1 px-4 py-3 hover:bg-subtle">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-mono font-medium text-accent">{o.poNumber}</span>
                 <StatusBadge status={o.status} />
               </span>
-              <span className="font-medium">{titleCase(vendorName(o))}</span>
-              <span className="flex justify-between text-muted">
-                <span>Ships {formatDate(o.shipDate)}</span>
-                <span className="num font-medium text-ink">{formatMoney(o.totalCost)}</span>
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-medium">{titleCase(vendorName(o))}</span>
+                <span className="num font-semibold">{formatMoney(o.totalCost)}</span>
               </span>
-              <Meter share={o.totalCost / largest} label={`${formatPercent(shareOf(o.totalCost))} of all orders by value`} />
             </Link>
           </li>
         ))}

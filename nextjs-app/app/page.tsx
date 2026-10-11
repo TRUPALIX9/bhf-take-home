@@ -1,25 +1,30 @@
 /**
- * PO list route: /. Server Component.
- * Reads the ?status= filter, then streams OrdersSummary and OrdersTable, each behind its own skeleton.
+ * PO list: the home route "/". Server Component.
+ * The heading renders at once; the toolbar and the table stream in behind their own
+ * skeletons. Status, country, vendor and sort come from the URL
+ * (?status=pending&country=CHN&vendor=50201&sort=total&dir=desc), so every view is a shareable link.
  */
 import { Suspense } from "react";
-import { OrdersSummary } from "@/components/OrdersSummary";
 import { OrdersTable } from "@/components/OrdersTable";
-import { SummarySkeleton, TableSkeleton } from "@/components/Skeletons";
-import type { ReviewStatus } from "@/lib/types";
+import { OrdersToolbar } from "@/components/OrdersToolbar";
+import { TableSkeleton, ToolbarSkeleton } from "@/components/Skeletons";
+import { parseFilters } from "@/lib/filters";
+import { parseSort } from "@/lib/sort";
 
-// Review status changes at runtime, so render on every request.
+// Review status changes at runtime, so render on every request instead of prerendering.
 export const dynamic = "force-dynamic";
 
-// searchParams is a Promise in Next 15, so the page awaits it.
-type Props = { searchParams: Promise<{ status?: string }> };
+// In Next 15 searchParams is a Promise.
+type Props = {
+  searchParams: Promise<{ status?: string; country?: string; vendor?: string; master?: string; sort?: string; dir?: string }>;
+};
 
-/** Lists all POs, optionally filtered to pending or approved. */
+/** The list page: heading, then one card with the toolbar and the table. */
 export default async function OrdersPage({ searchParams }: Props) {
-  const { status } = await searchParams;
-  // The URL is user input: anything other than the two known values means "all".
-  const filter: ReviewStatus | undefined =
-    status === "pending" || status === "approved" ? status : undefined;
+  const params = await searchParams;
+  // Anything the URL can't mean is ignored, so a bad value shows the default view.
+  const filters = parseFilters(params);
+  const sort = parseSort(params.sort, params.dir);
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,17 +33,19 @@ export default async function OrdersPage({ searchParams }: Props) {
         <p className="text-muted">Check each vendor PO, then approve it for downstream systems.</p>
       </div>
 
-      {/* Two boundaries so each part only reloads when its own data changes:
-          the summary has no key, so it stays put when the tab changes;
-          the table is keyed by filter, so only it shows a skeleton. */}
-      <div className="flex flex-col">
-        <Suspense fallback={<SummarySkeleton />}>
-          <OrdersSummary />
+      {/* Toolbar and table share one card. Only the table is keyed by the filters and sort,
+          so it is the only part that shows a skeleton when one of them changes. */}
+      <section aria-label="Order list" className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+        <Suspense fallback={<ToolbarSkeleton />}>
+          <OrdersToolbar filters={filters} />
         </Suspense>
-        <Suspense key={filter ?? "all"} fallback={<TableSkeleton />}>
-          <OrdersTable filter={filter} />
+        <Suspense
+          key={`${filters.status}-${filters.country}-${filters.vendor}-${filters.master}-${sort.key}-${sort.dir}`}
+          fallback={<TableSkeleton />}
+        >
+          <OrdersTable filters={filters} sort={sort} />
         </Suspense>
-      </div>
+      </section>
     </div>
   );
 }

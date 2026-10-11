@@ -5,10 +5,12 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 
-/** The "Approved" number in the list page's stat row. */
+/** The number on the "Approved" tab. */
 async function approvedCount(page: Page): Promise<number> {
   await page.goto("/");
-  return Number(await page.getByTestId("approved-count").innerText());
+  // The "Approved" tab shows its count, e.g. "Approved 1".
+  const text = await page.getByRole("link", { name: /^Approved/ }).innerText();
+  return Number(text.replace(/\D/g, ""));
 }
 
 // --- list and detail ---
@@ -144,4 +146,62 @@ test("a PO that fails to load shows the error boundary, not a crash", async ({ p
 
   await page.getByRole("link", { name: "Back to purchase orders" }).click();
   await expect(page.getByRole("heading", { name: "Purchase orders" })).toBeVisible();
+});
+
+// --- sorting and clickable cards ---
+
+test("clicking a column header sorts the table, and clicking again reverses it", async ({ page, isMobile }) => {
+  test.skip(isMobile, "the sortable table is the desktop view; phones get the card list");
+  await page.goto("/");
+  const firstPo = page.locator("tbody tr").first().locator("td").first();
+
+  await page.getByRole("link", { name: /Total cost/ }).click();
+  await expect(page).toHaveURL(/sort=total&dir=desc/);
+  await expect(firstPo).toHaveText("TX9K2QP"); // the largest PO
+
+  await page.getByRole("link", { name: /Total cost/ }).click();
+  await expect(page).toHaveURL(/sort=total&dir=asc/);
+  await expect(firstPo).toHaveText("TX9K3RA"); // the smallest PO
+});
+
+test("Filters: pick several values, apply, and remove one chip", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  const panel = page.getByRole("dialog", { name: "Filter purchase orders" });
+  await panel.getByLabel(/^China/).check();
+  await panel.getByLabel(/^Indus Home Mills/).check();
+  await panel.getByRole("button", { name: /^Apply/ }).click();
+
+  // China AND that vendor: no PO is both (Indus ships from Pakistan), so the empty state shows.
+  await expect(page).toHaveURL(/country=CHN&vendor=50417/);
+  await expect(page.getByText(/No POs from China/)).toBeVisible();
+
+  // Removing the vendor chip leaves the China filter: three POs.
+  await page.getByRole("button", { name: "Remove filter Indus Home Mills Pvt Ltd" }).click();
+  await expect(page).toHaveURL(/country=CHN$/);
+  await expect(page.getByRole("link", { name: /^All/ })).toContainText("3");
+});
+
+test("clicking anywhere on a row opens the PO", async ({ page, isMobile }) => {
+  test.skip(isMobile, "phones get the card list, where the whole card is already a link");
+  await page.goto("/");
+  // The PO link is stretched over the row, so click at the cell's position like a person would.
+  await page.getByRole("cell", { name: "Larkshore Textile Co Ltd" }).click({ force: true });
+  await expect(page).toHaveURL(/\/orders\/TX9K3RA$/);
+});
+
+test("an empty tab shows a friendly message", async ({ page }) => {
+  // Pakistan has one PO and it is pending, so "Approved" for Pakistan is empty.
+  await page.goto("/?status=approved&country=PAK");
+  await expect(page.getByText("No approved POs from Pakistan yet")).toBeVisible();
+  await page.getByRole("link", { name: "Show all purchase orders" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("Ref master PO opens the list of POs that share it", async ({ page }) => {
+  await page.goto("/orders/TX9K2QP");
+  await page.getByRole("link", { name: /TX9H1LM/ }).click();
+  await expect(page).toHaveURL(/master=TX9H1LM/);
+  await expect(page.getByRole("button", { name: "Remove filter Master PO TX9H1LM" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^All/ })).toContainText("2"); // TX9K2QP and TX9K3RA
 });

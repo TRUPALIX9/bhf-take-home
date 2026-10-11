@@ -12,6 +12,11 @@ const variants: Record<Variant, string> = {
   secondary: "border border-line-strong bg-surface text-ink hover:bg-subtle",
 };
 
+/** Button look for a <Link>, so links and buttons in one row match. */
+export function buttonClass(variant: Variant = "primary") {
+  return `inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 font-medium transition-colors ${variants[variant]}`;
+}
+
 /** Text link in the accent color. */
 export const linkClass = "font-medium text-accent underline-offset-4 hover:underline";
 

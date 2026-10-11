@@ -55,12 +55,6 @@ export function formatAddressLine(line: string): string {
   return m ? `${m[1] === "PHONE" ? "Phone" : "Fax"} (${m[2]}) ${m[3]}-${m[4]}` : line;
 }
 
-/** 0.6612 -> "66%"; tiny non-zero shares show as "<1%" instead of "0%". */
-export function formatPercent(share: number): string {
-  if (share > 0 && share < 0.01) return "<1%";
-  return `${Math.round(share * 100)}%`;
-}
-
 // --- Totals ---
 /** Sums the line items for the totals row, to check against the PO header. */
 export function lineTotals(lines: LineItem[]) {
