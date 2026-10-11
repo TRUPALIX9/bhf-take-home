@@ -54,4 +54,4 @@ Built with Claude Code. The instruction files it used are committed unchanged: [
 
 ## Time spent
 
-Next.js: _TBD_. Python: _TBD_.
+About 1.5 hours in total for both parts, working with Claude Code (see AI use above).

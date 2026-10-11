@@ -108,7 +108,7 @@ Flags: 0
 
 ## Time spent
 
-_TBD_
+About 1.5 hours in total for both parts, working with Claude Code. See the [root README](../README.md).
 
 ## AI use
 

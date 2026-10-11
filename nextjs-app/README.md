@@ -157,7 +157,7 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Time spent
 
-_TBD_
+About 1.5 hours in total for both parts, working with Claude Code. See the [root README](../README.md).
 
 ## AI use
 
