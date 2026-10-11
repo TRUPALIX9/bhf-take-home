@@ -2,6 +2,8 @@
  * Playwright setup for the e2e tests in ./e2e.
  * Run: npm run test:e2e. It builds the app, starts it on port 3100 and runs
  * every test twice: desktop Chrome and a 375px phone.
+ * scripts/check.sh has already built the app, so it sets PW_PREBUILT=1 and the build
+ * here is skipped: one build per run (a second Turbopack build into the same folder failed in CI).
  */
 import { defineConfig, devices } from "@playwright/test";
 
@@ -22,7 +24,7 @@ export default defineConfig({
   ],
   webServer: {
     // Test the production build, which is what would ship, not the dev server.
-    command: `npm run build && npm run start -- --port ${port}`,
+    command: `${process.env.PW_PREBUILT ? "" : "npm run build && "}npm run start -- --port ${port}`,
     url: `http://localhost:${port}`,
     timeout: 180_000,
     // Locally, reuse a server already on the port; in CI always start fresh.

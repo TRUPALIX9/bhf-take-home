@@ -59,7 +59,7 @@ if [ "$do_next" = 1 ]; then
   step "next: build";     NEXT_DIST_DIR=.next-test npm run --silent build  # own folder, so a running dev server is untouched
   if [ "$do_e2e" = 1 ]; then
     step "next: e2e"
-    npm run --silent test:e2e
+    PW_PREBUILT=1 npm run --silent test:e2e  # starts the build above instead of building again
   else
     note "skipped e2e (--no-e2e)"
   fi
