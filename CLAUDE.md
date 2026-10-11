@@ -9,6 +9,8 @@ BHF take-home, two independent parts:
 - `nextjs-app/` (required): Next.js 15 App Router + TypeScript + Tailwind. A purchase-order review app: server-rendered list, detail route, one server action.
 - `python-po-parser/` (optional): one script that turns `input/purchase_order_sample.txt` into an `.xlsx` matching `input/output_template_blank.xlsx`, with math validation.
 
+- `technical-assessment/`: the original briefs and sample files from BHF, unchanged, plus a README mapping each requirement to code and tests. Never edit the originals.
+
 Each folder has its own README and CLAUDE.md. The folders do not import from each other. The only link is data: the parser's `--json` output is committed as the TX9K2QP entry in `nextjs-app/data/orders.json`.
 
 ## Rules
