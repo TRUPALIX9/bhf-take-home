@@ -1,4 +1,7 @@
-/** White box with a hairline border. The one container style used across the app. */
+/**
+ * White box with a hairline border. The one container style used across the app.
+ * Server-safe: no hooks. Renders a <section>; the optional title becomes its h2.
+ */
 export function Card({
   title,
   children,

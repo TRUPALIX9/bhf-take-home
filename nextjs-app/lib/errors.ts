@@ -1,6 +1,7 @@
 /**
  * Every error a person can see in the app, with a short code and a plain message.
  * The code is what someone would quote to support; the message says what to do.
+ * Plain data, safe on server and client: used by actions.ts, error boundaries and not-found.
  */
 export const appErrors = {
   poNotFound: {
@@ -28,6 +29,7 @@ export const appErrors = {
     title: "The app could not start",
     message: "Something failed while loading the app. Try again; if it keeps failing, restart the server.",
   },
-} as const;
+} as const; // as const keeps the literal strings, so AppError is exact.
 
+/** Any one entry from appErrors. */
 export type AppError = (typeof appErrors)[keyof typeof appErrors];

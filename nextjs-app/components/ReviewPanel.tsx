@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Title bar, approve/move-back button and step tracker on the PO detail page (used by OrderDetail).
+ * Client Component: it needs useActionState and useOptimistic to show the new status
+ * before the server action finishes.
+ */
+
 import { useActionState, useOptimistic } from "react";
 import { toggleReviewStatus, type ToggleState } from "@/app/actions";
 import { ProcessSteps, type Step } from "@/components/ProcessSteps";
@@ -7,6 +13,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import type { ReviewStatus } from "@/lib/types";
 
+// --- Props and step data ---
 type Props = {
   poNumber: string;
   status: ReviewStatus;
@@ -16,6 +23,7 @@ type Props = {
   totalsMatch: boolean;
 };
 
+/** Builds the four tracker steps from the status that is on screen right now. */
 function stepsFor(status: ReviewStatus, p: Props): Step[] {
   const approved = status === "approved";
   return [
@@ -46,11 +54,20 @@ function stepsFor(status: ReviewStatus, p: Props): Step[] {
  */
 export function ReviewPanel(props: Props) {
   const { poNumber, status, subtitle } = props;
+
+  // --- Optimistic state ---
+  // `status` is the server value. `shownStatus` is what the user sees: it equals `status`
+  // except while an action is running. When the action ends and the page revalidates,
+  // React drops the optimistic value and shows the server one again.
   // The reducer flips whatever is on screen now, so it never works from a stale value.
   const [shownStatus, flipShownStatus] = useOptimistic<ReviewStatus, void>(status, (current) =>
     current === "pending" ? "approved" : "pending",
   );
 
+  // --- Server action ---
+  // useActionState gives the last result (state.error), a form action to pass to <form>,
+  // and isPending while it runs. The optimistic flip must happen inside the action so
+  // React ties it to this transition.
   const [state, formAction, isPending] = useActionState<ToggleState, FormData>(
     async (prev, formData) => {
       flipShownStatus();
@@ -59,10 +76,13 @@ export function ReviewPanel(props: Props) {
     {},
   );
 
+  // True when the button should approve; false when it should move the PO back.
   const approve = shownStatus === "pending";
 
+  // --- Render ---
   return (
     <div className="flex flex-col gap-6">
+      {/* Title bar: PO number, badge and subtitle on the left, button on the right */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-3">
@@ -72,6 +92,7 @@ export function ReviewPanel(props: Props) {
           <p className="text-muted">{subtitle}</p>
         </div>
 
+        {/* A real <form> posting to a server action, so the button is a plain submit. */}
         <form action={formAction} className="flex flex-col items-end gap-2">
           <input type="hidden" name="poNumber" value={poNumber} />
           {/* While saving, the label names the step we are moving to. */}
@@ -97,6 +118,7 @@ export function ReviewPanel(props: Props) {
         {isPending ? "Saving" : state.error ? "" : `Status: ${shownStatus === "approved" ? "Approved" : "Pending review"}`}
       </p>
 
+      {/* Step tracker follows shownStatus, so it moves on click like the badge. */}
       <ProcessSteps steps={stepsFor(shownStatus, props)} />
     </div>
   );

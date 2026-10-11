@@ -1,7 +1,12 @@
+/**
+ * 404 page for /orders/[poNumber]. Server Component.
+ * Rendered when page.tsx calls notFound(); the response keeps its 404 status.
+ */
 import Link from "next/link";
 import { linkClass } from "@/components/ui/Button";
 import { appErrors } from "@/lib/errors";
 
+/** "PO not found" message with the PO-404 code and a link back to the list. */
 export default function OrderNotFound() {
   const { code, title, message } = appErrors.poNotFound;
   return (

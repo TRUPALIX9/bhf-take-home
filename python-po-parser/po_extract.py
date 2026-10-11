@@ -1,7 +1,9 @@
 """Turn the sample purchase order text file into the output template spreadsheet.
 
-Written for this one PO layout, on purpose. Sections, in order:
-model, parse, validate, write, main.
+Run: python3 po_extract.py [--input ...] [--output ...] [--json]
+Flow: text file -> parse -> validate -> filled template (.xlsx), plus optional
+JSON that seeds the Next.js app. Written for this one PO layout, on purpose.
+Sections, in order: model, parse, validate, write, main.
 """
 
 import argparse
@@ -22,14 +24,23 @@ DEFAULT_TEMPLATE = HERE / "input" / "output_template_blank.xlsx"
 DEFAULT_OUTPUT = HERE / "output" / "purchase_order_sample.xlsx"
 
 # Header fields. A value ends at a run of 2+ spaces, where the next column starts.
+# Single spaces stay inside the value, so "610 JORDAN MILLER" is read whole.
 BUYER_RE = re.compile(r"BUYER: (?P<value>.+?)(?: {2,}|$)")
+# "SHIP TERMS: FOB Ningbo,CHN" -> "FOB Ningbo,CHN".
 SHIP_TERMS_RE = re.compile(r"SHIP TERMS: (?P<value>.+?)(?: {2,}|$)")
+# "PO#: TX9K2QP". The lookbehind skips "REF MASTER PO#:", which also ends in "PO#: ".
 PO_NUMBER_RE = re.compile(r"(?<!MASTER )PO#: (?P<value>\S+)")
+# "REF MASTER PO#: TX9H1LM".
 REF_MASTER_PO_RE = re.compile(r"REF MASTER PO#: (?P<value>\S+)")
+# "SHIP DATE: 5/02/26". Two-digit year, so it is parsed with %y.
 SHIP_DATE_RE = re.compile(r"SHIP DATE: (?P<value>\d{1,2}/\d{1,2}/\d{2})$")
+# The PO date has no label: it is the 4-digit-year date at the end of the
+# BUYER line, "... 3/14/2026". The 4-digit year keeps it from matching SHIP DATE.
 PO_DATE_RE = re.compile(r" (?P<value>\d{1,2}/\d{1,2}/\d{4})$")
 
 # One item row: three text columns, a description with spaces, then nine numbers.
+# "210 71097188  04212  NORDPEAK ASHER T CMFST GRY  149.99  49.400 ... 7.72".
+# Anchored at both ends, so a row with a missing or extra number does not match.
 ITEM_RE = re.compile(
     r"^(?P<dept>\d{3}) +"
     r"(?P<sku>\d+) +"
@@ -44,9 +55,11 @@ ITEM_RE = re.compile(
     r"(?P<cube>\d+\.\d+) +"
     r"(?P<kilograms>\d+\.\d+)$"
 )
-# The UPC sits alone on the line right under its item row, indented 4 spaces.
+# The UPC sits alone on the line right under its item row, indented 4 spaces:
+# "    0091120032129". Kept as text so the leading zeros survive.
 UPC_RE = re.compile(r"^ {4}(?P<upc>\d{12,14})$")
-# The TOTALS numbers are not aligned under their columns, so read them in order.
+# The TOTALS numbers are not aligned under their columns, so read them in order:
+# "TOTALS:  447455.120  3475  6950  119.18" = EXT COST, CTNS, EXT QTY, KILOGRAMS.
 TOTALS_RE = re.compile(
     r"^TOTALS: +(?P<ext_cost>\d+\.\d+) +(?P<cartons>\d+) +"
     r"(?P<ext_qty>\d+) +(?P<kilograms>\d+\.\d+)$"
@@ -56,8 +69,15 @@ TOTALS_RE = re.compile(
 # ---------------------------------------------------------------- model
 
 
+# Frozen dataclasses: parsed data is read-only, and tests can make a changed
+# copy with dataclasses.replace. Money and weights are Decimal, not float, so
+# 49.400 x 136 equals 6718.400 exactly and the checks can use plain ==.
+
+
 @dataclass(frozen=True)
 class Header:
+    """The fields printed above the item table."""
+
     po_number: str
     ref_master_po: str
     po_date: date
@@ -71,6 +91,8 @@ class Header:
 
 @dataclass(frozen=True)
 class LineItem:
+    """One item row plus the UPC line under it."""
+
     dept: str
     sku: str
     upc: str
@@ -88,6 +110,8 @@ class LineItem:
 
 @dataclass(frozen=True)
 class Totals:
+    """The printed TOTALS line."""
+
     ext_cost: Decimal
     cartons: int
     ext_qty: int
@@ -96,6 +120,8 @@ class Totals:
 
 @dataclass(frozen=True)
 class PurchaseOrder:
+    """The whole parsed order."""
+
     header: Header
     items: tuple[LineItem, ...]
     totals: Totals
@@ -103,6 +129,8 @@ class PurchaseOrder:
 
 @dataclass(frozen=True)
 class Flag:
+    """One validation problem, tied to the cell it belongs on."""
+
     column: str  # template column the problem belongs to
     message: str
 
@@ -172,7 +200,10 @@ def read_block(lines: list[str], title: str) -> tuple[str, ...]:
 def read_side_by_side_blocks(
     lines: list[str], left_title: str, right_title: str
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Two blocks printed next to each other: split each line where the right title starts."""
+    """Two blocks printed next to each other: split each line where the right title starts.
+
+    SHIP TO has one more line than BILL TO, so each side skips its blank halves.
+    """
     title_index = find_block_start(lines, left_title)
     split_at = lines[title_index].index(right_title)
     left, right = [], []
@@ -245,7 +276,10 @@ def parse_totals(lines: list[str]) -> Totals:
 
 
 def check_item(item: LineItem) -> list[Flag]:
-    """Recompute EXT QTY and EXT Cost and flag any that differ from the print."""
+    """Recompute EXT QTY and EXT Cost and flag any that differ from the print.
+
+    The printed values are written as-is; the check only flags, never corrects.
+    """
     flags = []
     expected_qty = item.cartons * item.case_pack
     if expected_qty != item.ext_qty:
@@ -287,8 +321,12 @@ def all_flags(po: PurchaseOrder) -> list[str]:
 
 # ---------------------------------------------------------------- write
 
+# Light red, the same fill Excel uses for its "bad" cell style.
 FLAG_FILL = PatternFill(fill_type="solid", fgColor="FFC7CE")
+# "@" is Excel's Text format. Codes like UPC 0091120032129 and vendor part 04212
+# are written as strings with this format, so Excel keeps the leading zeros.
 TEXT_FORMAT = "@"
+# Columns not listed here are text. Cost has 3 decimals because the PO prints 49.400.
 NUMBER_FORMATS = {
     "SHIP DATE": "m/d/yyyy",
     "Retail": "0.00",
@@ -348,7 +386,12 @@ def mark_flag(cell, message: str) -> None:
 
 
 def write_xlsx(po: PurchaseOrder, filename: str, template: Path, output: Path) -> None:
-    """Fill a copy of the template, one row per item, and save it to output."""
+    """Fill a copy of the template, one row per item, and save it to output.
+
+    Loading the template, instead of building a fresh workbook, keeps its
+    header row, sheet name and column widths exactly as given. Columns are
+    looked up by header name, so the template's order is the source of truth.
+    """
     workbook = load_workbook(template)
     sheet = workbook["Sheet1"]
     columns = [cell.value for cell in sheet[1]]
@@ -410,6 +453,7 @@ def write_json(po: PurchaseOrder, output: Path) -> None:
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Command-line options. All paths default to the files in this folder."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--template", type=Path, default=DEFAULT_TEMPLATE)
@@ -423,7 +467,11 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Parse, validate, write. Exit code 1 if anything was flagged."""
+    """Parse, validate, write. Exit code 1 if anything was flagged.
+
+    The spreadsheet is still written when there are flags, so a person can
+    see the red cells. The exit code lets a script or CI notice the problem.
+    """
     args = parse_args(argv)
     po = parse(args.input.read_text(encoding="utf-8"))
     write_xlsx(po, args.input.name, args.template, args.output)

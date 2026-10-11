@@ -1,3 +1,6 @@
+# CI: runs scripts/check.sh on every push and pull request.
+# Sets up Node and Python, installs both parts' dependencies, then runs the
+# same checks as a local scripts/check.sh.
 name: check
 on: [push, pull_request]
 
@@ -10,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # --- tool versions ---
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -18,9 +22,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # --- Next.js app: exact installs from the lock file, plus the browser for e2e ---
       - run: npm ci
         working-directory: nextjs-app
       - run: npx playwright install --with-deps chromium
         working-directory: nextjs-app
+      # --- Python PO parser: openpyxl, pytest, ruff ---
       - run: pip install -r python-po-parser/requirements-dev.txt
+      # --- every check for both parts ---
       - run: scripts/check.sh

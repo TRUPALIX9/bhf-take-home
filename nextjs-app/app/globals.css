@@ -1,5 +1,11 @@
+/*
+ * Global stylesheet, imported once by app/layout.tsx (and by global-error.tsx).
+ * Tailwind v4: design tokens live in @theme, and each one becomes utility classes
+ * (--color-accent -> bg-accent, text-accent, border-accent, and so on).
+ */
 @import "tailwindcss";
 
+/* --- Tokens --- */
 /* Product UI: white surfaces, grey hairlines, BHF's slate blue (britannicahome.com) as the one accent. */
 @theme {
   --color-surface: #ffffff;
@@ -18,6 +24,7 @@
   --color-approved-bg: #e4f3ea;
   --color-danger: #b42318;
 
+  /* The --font-plex-* variables come from next/font in layout.tsx; the rest are fallbacks. */
   --font-sans: var(--font-plex-sans), "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
 
@@ -35,6 +42,7 @@
   }
 }
 
+/* --- Base --- */
 html {
   /* Keep the scrollbar space so the layout doesn't jump when a list gets shorter. */
   scrollbar-gutter: stable;
@@ -45,11 +53,13 @@ body {
   color: var(--color-ink);
 }
 
+/* Visible focus ring for keyboard users only; mouse clicks don't trigger it. */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
+/* --- Utilities --- */
 /* Numbers line up in columns. */
 .num {
   font-variant-numeric: tabular-nums;

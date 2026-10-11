@@ -1,3 +1,8 @@
+/**
+ * Shared button and link styles. Button has an onClick wrapper but no hooks, so it can be
+ * used by Client Components (ReviewPanel, ErrorState) without its own "use client".
+ */
+
 import { Spinner } from "@/components/ui/Spinner";
 
 type Variant = "primary" | "secondary";
@@ -22,11 +27,13 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; pending?: boolean }) {
   return (
+    // Spread first so the props below (aria, onClick, className) always win.
     <button
       {...props}
       aria-disabled={pending || undefined}
       aria-busy={pending || undefined}
       onClick={(e) => {
+        // preventDefault also stops a type="submit" button from submitting the form again.
         if (pending) return e.preventDefault();
         onClick?.(e);
       }}

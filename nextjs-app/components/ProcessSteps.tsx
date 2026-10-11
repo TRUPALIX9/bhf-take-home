@@ -1,6 +1,14 @@
+/**
+ * Four-step progress tracker on the PO detail page, rendered inside ReviewPanel.
+ * No hooks or handlers, so it works as a Server Component, but it runs on the client
+ * here because ReviewPanel imports it. That lets it follow the optimistic status.
+ */
+
+// --- Types and style maps ---
 type StepState = "done" | "current" | "problem" | "upcoming";
 export type Step = { title: string; detail: string; state: StepState };
 
+// Record<StepState, ...> makes TypeScript fail if a state is added without a style.
 const dot: Record<StepState, string> = {
   done: "border-approved bg-approved text-inverse",
   current: "border-accent bg-surface text-accent",
@@ -23,6 +31,8 @@ const spoken: Record<StepState, string> = {
  * All motion is skipped when the person has asked for reduced motion.
  */
 export function ProcessSteps({ steps }: { steps: Step[] }) {
+  // --- Render ---
+  // An <ol> because the order of the steps carries meaning for screen readers.
   return (
     <ol
       aria-label="Order progress"
@@ -34,6 +44,8 @@ export function ProcessSteps({ steps }: { steps: Step[] }) {
           aria-current={step.state === "current" ? "step" : undefined}
           className="relative flex gap-3 sm:flex-col sm:gap-2 sm:pr-4"
         >
+          {/* Connector line to the next step (not after the last one). The inner bar scales
+              from 0 to 100% width when the step is done; transform animates smoothly. */}
           {i < steps.length - 1 && (
             <span
               aria-hidden
@@ -48,6 +60,7 @@ export function ProcessSteps({ steps }: { steps: Step[] }) {
           )}
 
           <span className="relative grid size-6 shrink-0 place-items-center">
+            {/* Pulsing ring behind the current step's dot */}
             {step.state === "current" && (
               <span aria-hidden className="absolute inset-0 rounded-full bg-accent/30 motion-safe:animate-ping" />
             )}
@@ -66,6 +79,7 @@ export function ProcessSteps({ steps }: { steps: Step[] }) {
             </span>
           </span>
 
+          {/* Title and detail. The dot is aria-hidden, so the sr-only text gives its meaning. */}
           <span className="flex flex-col">
             <span className={`font-medium transition-colors ${step.state === "upcoming" ? "text-muted" : ""}`}>
               {step.title}

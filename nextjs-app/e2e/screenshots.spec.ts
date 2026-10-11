@@ -1,3 +1,7 @@
+/**
+ * Captures the README images from the running app; it is not a test of behaviour.
+ * Run: npm run screenshots (desktop project only). Output: ../docs/screenshots.
+ */
 import { expect, test } from "@playwright/test";
 
 // Not part of the normal test run. `npm run screenshots` sets SCREENSHOTS=1 and
@@ -6,6 +10,7 @@ test.skip(!process.env.SCREENSHOTS, "only runs with npm run screenshots");
 
 const dir = "../docs/screenshots";
 
+// Each shot waits for a known element first, so the page is fully drawn.
 test("README screenshots", async ({ page }) => {
   // Still images: skip fade-ins so nothing is captured half-drawn.
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -49,6 +54,7 @@ test("palette", async ({ page }) => {
     return names.map((n) => [n, css.getPropertyValue(`--color-${n}`).trim()]);
   });
 
+  // Draw the swatches on a blank page, then screenshot just the grid.
   const swatches = tokens
     .map(
       ([name, value]) => `<div class="s"><div class="c" style="background:${value}"></div>

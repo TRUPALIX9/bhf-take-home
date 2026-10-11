@@ -1,14 +1,24 @@
+/**
+ * Unit tests for the order data layer (lib/orders.ts).
+ * Run: npm test (Vitest). They read the same JSON seed the pages use,
+ * including the sample PO written by the Python script with --json.
+ */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // "server-only" throws outside a React Server Components build.
 vi.mock("server-only", () => ({}));
+
+// Imported after the mock is registered, so lib/orders gets the empty stub.
 
 const { getOrder, getOrders, orderExists, resetStatuses, toggleStatus } = await import(
   "@/lib/orders"
 );
 const { lineTotals } = await import("@/lib/format");
 
+// Statuses live in memory, so start every test from the seed values.
 beforeEach(() => resetStatuses());
+
+// --- reading orders ---
 
 describe("getOrders", () => {
   it("returns every seed order, earliest ship date first", async () => {
@@ -16,6 +26,7 @@ describe("getOrders", () => {
     expect(orders.map((o) => o.poNumber)).toEqual(["TX9K2QP", "TX9K3RA", "TX9K4MB", "TX9K5DC"]);
   });
 
+  // Guards the seed data: a typo in any line would show a wrong total on the page.
   it("has line items that add up to each PO total", async () => {
     for (const order of await getOrders()) {
       expect(lineTotals(order.lines).extCost, order.poNumber).toBe(order.totalCost);
@@ -39,6 +50,8 @@ describe("getOrder", () => {
   });
 });
 
+// --- review status ---
+
 describe("toggleStatus", () => {
   it("flips pending to approved and back", async () => {
     expect((await getOrder("TX9K2QP"))?.status).toBe("pending");
@@ -47,6 +60,7 @@ describe("toggleStatus", () => {
     expect(await toggleStatus("TX9K2QP")).toBe("pending");
   });
 
+  // TX9K3RA is approved in the seed, so both statuses are checked as unchanged.
   it("changes only the PO it is given", async () => {
     await toggleStatus("TX9K2QP");
     expect((await getOrder("TX9K4MB"))?.status).toBe("pending");

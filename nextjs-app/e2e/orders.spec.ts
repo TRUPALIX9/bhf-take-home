@@ -1,3 +1,8 @@
+/**
+ * End-to-end tests: a real production build in a browser, desktop and phone width.
+ * Run: npm run test:e2e (playwright.config.ts builds and starts the server).
+ * They cover the brief's flows: list, open a PO, approve, errors, mobile layout.
+ */
 import { expect, test, type Page } from "@playwright/test";
 
 /** The "Approved" number in the list page's stat row. */
@@ -5,6 +10,8 @@ async function approvedCount(page: Page): Promise<number> {
   await page.goto("/");
   return Number(await page.getByTestId("approved-count").innerText());
 }
+
+// --- list and detail ---
 
 test("list is rendered on the server", async ({ request }) => {
   // The raw HTML, before any JavaScript runs, already contains the data.
@@ -15,6 +22,7 @@ test("list is rendered on the server", async ({ request }) => {
 
 test("open a PO from the list and see its line items", async ({ page }) => {
   await page.goto("/");
+  // The list renders as a table on desktop and as cards on mobile; click whichever is shown.
   await page.getByRole("link", { name: "TX9K2QP" }).filter({ visible: true }).first().click();
 
   await expect(page).toHaveURL(/\/orders\/TX9K2QP$/);
@@ -22,6 +30,8 @@ test("open a PO from the list and see its line items", async ({ page }) => {
   await expect(page.locator("tbody tr")).toHaveCount(12);
   await expect(page.getByTestId("lines-total")).toHaveText("$447,455.12");
 });
+
+// --- review status ---
 
 test.describe("review status", () => {
   const po = "/orders/TX9K4MB";
@@ -40,6 +50,7 @@ test.describe("review status", () => {
   test.beforeEach(resetToPending);
   test.afterEach(resetToPending);
 
+  // Proves the change is saved on the server, not just shown in the browser.
   test("approve a PO, then move it back to review", async ({ page }) => {
     const before = await approvedCount(page);
 
@@ -61,6 +72,7 @@ test.describe("review status", () => {
     await expect(status).toHaveText("Pending review");
   });
 
+  // The "Review" step stops being current once the PO is approved.
   test("approving updates the step tracker", async ({ page }) => {
     await page.goto("/orders/TX9K4MB");
     const review = page.getByRole("listitem").filter({ hasText: "Review" }).first();
@@ -76,12 +88,16 @@ test.describe("review status", () => {
   });
 });
 
+// --- errors and layout ---
+
+// A real 404 status, not a 200 page that only says "not found".
 test("unknown PO shows the not-found page", async ({ page }) => {
   const response = await page.goto("/orders/NOPE");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "PO not found" })).toBeVisible();
 });
 
+// The wide line-item table must scroll inside its own box, most of all at 375px.
 test("page never scrolls sideways", async ({ page }) => {
   await page.goto("/orders/TX9K2QP");
   const overflow = await page.evaluate(
@@ -90,6 +106,8 @@ test("page never scrolls sideways", async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+// The filter is in the URL, so it works on first load and can be shared.
+// TX9K3RA is the only PO approved in the seed.
 test("status tabs filter the list", async ({ page }) => {
   await page.goto("/?status=approved");
   const rows = page.locator("table tbody tr, ul li").filter({ visible: true });

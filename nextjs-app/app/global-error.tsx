@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Top-level error boundary for failures in app/layout.tsx itself. Client Component.
+ * Only used when app/error.tsx can't help, because that boundary lives inside the layout.
+ */
+// The root layout isn't rendered here, so the global styles have to be imported again.
 import "./globals.css";
 import { ErrorState } from "@/components/ErrorState";
 import { appErrors } from "@/lib/errors";

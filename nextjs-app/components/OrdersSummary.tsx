@@ -1,3 +1,8 @@
+/**
+ * Stat cards and status tabs at the top of the PO list (app/page.tsx).
+ * Async Server Component inside its own Suspense boundary. StatusTabs is the client part.
+ */
+
 import { StatCard } from "@/components/StatCard";
 import { StatusTabs } from "@/components/StatusTabs";
 import { formatCount, formatDate, formatMoney } from "@/lib/format";
@@ -8,6 +13,7 @@ import { getOrders } from "@/lib/orders";
  * stays on screen while the table below reloads.
  */
 export async function OrdersSummary() {
+  // --- Data ---
   const orders = await getOrders();
   const pending = orders.filter((o) => o.status === "pending");
   const approved = orders.length - pending.length;
@@ -15,6 +21,7 @@ export async function OrdersSummary() {
   const units = orders.reduce((t, o) => t + o.lines.reduce((u, l) => u + l.extQty, 0), 0);
   const nextShip = pending[0]; // orders are sorted by ship date
 
+  // --- Render ---
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -36,6 +43,7 @@ export async function OrdersSummary() {
           note={nextShip ? `${nextShip.poNumber}, still pending` : "Nothing pending"}
         />
       </div>
+      {/* Counts are computed here on the server and passed down as plain props. */}
       <StatusTabs counts={{ all: orders.length, pending: pending.length, approved }} />
     </div>
   );

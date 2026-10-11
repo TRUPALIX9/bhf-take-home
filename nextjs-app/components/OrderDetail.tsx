@@ -1,3 +1,9 @@
+/**
+ * Body of the PO detail page (app/orders/[poNumber]/page.tsx). Async Server Component:
+ * it awaits the order on the server and ships no JS of its own. Only ReviewPanel,
+ * which holds the button, is a Client Component.
+ */
+
 import { notFound } from "next/navigation";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { StatCard } from "@/components/StatCard";
@@ -15,11 +21,13 @@ import { getOrder } from "@/lib/orders";
 
 /** Everything on the PO page below the breadcrumb. Streams in behind OrderDetailSkeleton. */
 export async function OrderDetail({ poNumber }: { poNumber: string }) {
+  // --- Data ---
   const order = await getOrder(poNumber);
   // The page already returned a real 404 via orderExists(); this only guards the type.
   if (!order) notFound();
 
   const totals = lineTotals(order.lines);
+  // Recompute the total from the lines and compare it with the PO header total.
   const totalsMatch = totals.extCost === order.totalCost;
 
   const details = [
@@ -35,8 +43,10 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
     ["Bill to", order.billTo],
   ] as const;
 
+  // --- Render ---
   return (
     <div className="flex flex-col gap-6 motion-safe:animate-fade-in">
+      {/* Title bar, review button and step tracker (client side) */}
       <ReviewPanel
         poNumber={order.poNumber}
         status={order.status}
@@ -46,6 +56,7 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
         totalsMatch={totalsMatch}
       />
 
+      {/* Stat cards: 2-up on phones, 4-up on large screens */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Total cost" value={formatMoney(order.totalCost)} />
         <StatCard label="Units" value={formatCount(totals.extQty)} note={`${order.lines.length} SKUs`} />
@@ -57,6 +68,7 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
         />
       </div>
 
+      {/* Details row: order details plus vendor, ship-to and bill-to addresses */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card title="Order details">
           <dl className="flex flex-col gap-2">
@@ -71,6 +83,7 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
         {addresses.map(([label, lines]) => (
           <Card key={label} title={label}>
             <address className="flex flex-col text-muted not-italic">
+              {/* Address lines have no id, and the list never reorders, so the index is a safe key. First line is the name. */}
               {lines.map((line, i) => (
                 <span key={i} className={i === 0 ? "text-ink" : undefined}>
                   {line}
@@ -81,10 +94,13 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
         ))}
       </div>
 
+      {/* Line items table */}
       <section aria-labelledby="lines-heading" className="flex min-w-0 flex-col gap-3">
         <h2 id="lines-heading" className="text-base font-semibold">
           Line items
         </h2>
+        {/* The table scrolls inside its own box on phones. tabIndex and role="region" let
+            keyboard users focus the box and scroll it with the arrow keys. */}
         <div
           className="overflow-x-auto rounded-lg border border-line"
           role="region"
@@ -129,6 +145,7 @@ export async function OrderDetail({ poNumber }: { poNumber: string }) {
                 </tr>
               ))}
             </tbody>
+            {/* Footer totals come from the lines, so a mismatch with the PO total is visible here. */}
             <tfoot className="border-t border-line-strong bg-subtle font-semibold">
               <tr>
                 <Td className="text-left">Total</Td>

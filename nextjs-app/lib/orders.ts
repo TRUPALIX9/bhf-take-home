@@ -1,8 +1,15 @@
+/**
+ * Data access layer for purchase orders. Server only.
+ * Pages, Server Components and app/actions.ts read and write orders through here;
+ * the order data comes from data/orders.json.
+ */
+// Build fails if a Client Component imports this file, so it never ships to the browser.
 import "server-only";
 import { cache } from "react";
 import seed from "@/data/orders.json";
 import type { Order, ReviewStatus } from "@/lib/types";
 
+// --- Store ---
 const orders = seed as Order[];
 
 // Review status is kept in memory, seeded from the JSON file. It is stored on
@@ -12,31 +19,37 @@ const store = globalThis as typeof globalThis & {
   reviewStatus?: Map<string, ReviewStatus>;
 };
 
+// Builds the Map on first use (??= only assigns when it is still undefined).
 function statuses(): Map<string, ReviewStatus> {
   store.reviewStatus ??= new Map(orders.map((o) => [o.poNumber, o.status]));
   return store.reviewStatus;
 }
 
+// Returns a copy with the live status, so the seed data is never mutated.
 function withCurrentStatus(order: Order): Order {
   return { ...order, status: statuses().get(order.poNumber) ?? order.status };
 }
 
+// --- Simulated latency ---
 // The functions below are async, like real database calls would be.
 // Set SIMULATED_LATENCY_MS (e.g. `npm run dev:slow`) to see loading states.
 const latency = Number(process.env.SIMULATED_LATENCY_MS ?? 0);
 const wait = () => (latency > 0 ? new Promise((r) => setTimeout(r, latency)) : Promise.resolve());
 
+// --- Reads ---
 /**
  * All orders, earliest ship date first. Wrapped in React's cache() so the
  * summary and the table share one read per request instead of two.
  */
 export const getOrders = cache(async (): Promise<Order[]> => {
   await wait();
+  // ISO dates sort correctly as plain strings.
   return orders
     .map(withCurrentStatus)
     .sort((a, b) => a.shipDate.localeCompare(b.shipDate));
 });
 
+/** One order with its current status, or undefined if the PO number is unknown. */
 export async function getOrder(poNumber: string): Promise<Order | undefined> {
   await wait();
   // Test hook: the e2e suite sets FAIL_PO to prove the error boundary works. Unset in normal use.
@@ -50,6 +63,7 @@ export function orderExists(poNumber: string): boolean {
   return orders.some((o) => o.poNumber === poNumber);
 }
 
+// --- Writes ---
 /** Flips an order between pending and approved and returns the new status. */
 export async function toggleStatus(poNumber: string): Promise<ReviewStatus> {
   await wait();
@@ -62,5 +76,6 @@ export async function toggleStatus(poNumber: string): Promise<ReviewStatus> {
 
 /** Puts every order back to its seed status. Used by tests. */
 export function resetStatuses(): void {
+  // statuses() rebuilds the Map from the seed on its next call.
   store.reviewStatus = undefined;
 }

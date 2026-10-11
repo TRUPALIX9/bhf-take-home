@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Body shared by app/error.tsx, app/global-error.tsx and the PO page's error.tsx.
+ * Client Component: Next requires error boundaries to be client code, and it uses
+ * useEffect plus the reset() callback Next passes in.
+ */
+
 import Link from "next/link";
 import { useEffect } from "react";
 import { Button, linkClass } from "@/components/ui/Button";
@@ -18,6 +24,7 @@ export function ErrorState({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Log once per error, after render, so logging never runs during rendering.
   useEffect(() => {
     console.error(`[${appError.code}]`, error);
   }, [appError.code, error]);
@@ -34,6 +41,7 @@ export function ErrorState({
         <p className="font-mono text-xs text-muted">Reference {error.digest}</p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-4">
+        {/* reset() re-renders the segment that failed, without a full page reload. */}
         <Button onClick={reset}>Try again</Button>
         <Link href="/" className={linkClass}>
           Back to purchase orders

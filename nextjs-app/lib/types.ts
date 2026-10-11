@@ -1,3 +1,9 @@
+/**
+ * Shared data types for purchase orders. Types only, so nothing here reaches the bundle.
+ * They describe data/orders.json and are used by lib/, app/ and components/.
+ */
+
+/** Where a PO is in review: waiting for a check, or cleared for downstream systems. */
 export type ReviewStatus = "pending" | "approved";
 
 /** One SKU row on a purchase order. Money is in US dollars. */
@@ -17,6 +23,7 @@ export type LineItem = {
   kilograms: number;
 };
 
+/** One purchase order, with header fields as printed on the PO and its line items. */
 export type Order = {
   poNumber: string;
   refMasterPo: string;

@@ -1,3 +1,8 @@
+/**
+ * Shared pill used for status badges and tab counts. Server-safe: no hooks.
+ * Color comes from the @theme tokens in globals.css via the tone map below.
+ */
+
 export type Tone = "pending" | "approved" | "accent" | "neutral";
 
 const tones: Record<Tone, string> = {

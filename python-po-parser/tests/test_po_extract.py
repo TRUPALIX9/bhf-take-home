@@ -1,3 +1,9 @@
+"""Tests for po_extract.py, grouped by section: parse, validate, write, main.
+
+Run from python-po-parser/: python3 -m pytest -q
+They use the real sample PO and template from input/, and write only to tmp_path.
+"""
+
 import json
 from dataclasses import replace
 from datetime import date, datetime
@@ -12,11 +18,14 @@ import po_extract as pe
 INPUT = Path(__file__).resolve().parent.parent / "input"
 SAMPLE = INPUT / "purchase_order_sample.txt"
 TEMPLATE = INPUT / "output_template_blank.xlsx"
+# The template's own header row, read once. Tests compare against this
+# instead of a hard-coded list, so they follow the file the brief supplied.
 TEMPLATE_HEADER = [cell.value for cell in load_workbook(TEMPLATE)["Sheet1"][1]]
 
 
 @pytest.fixture(scope="module")
 def po():
+    """The sample PO, parsed once and shared by every test in this file."""
     return pe.parse(SAMPLE.read_text(encoding="utf-8"))
 
 
@@ -28,6 +37,7 @@ def write_and_open(po, tmp_path):
 
 
 def row_as_dict(sheet, row):
+    """One sheet row as {template column name: cell value}."""
     return dict(zip(TEMPLATE_HEADER, [cell.value for cell in sheet[row]]))
 
 
@@ -35,6 +45,7 @@ def row_as_dict(sheet, row):
 
 
 def test_header_fields(po):
+    # Every labeled header value, plus both dates turned into real dates.
     header = po.header
     assert header.buyer == "610 JORDAN MILLER"
     assert header.ship_terms == "FOB Ningbo,CHN"
@@ -45,6 +56,7 @@ def test_header_fields(po):
 
 
 def test_address_blocks(po):
+    # VENDOR is a single block; SHIP TO and BILL TO share lines and are split by column.
     header = po.header
     assert header.vendor == (
         "50201 HARBOR POINT TRADING LTD",
@@ -70,6 +82,8 @@ def test_address_blocks(po):
 
 
 def test_twelve_items_each_with_its_upc(po):
+    # The brief's evaluation names the UPC line explicitly: each item must get
+    # the UPC printed under it, with leading zeros kept.
     assert len(po.items) == 12
     assert [item.sku for item in po.items][:2] == ["71097188", "71097195"]
     assert po.items[0].upc == "0091120032129"
@@ -78,6 +92,8 @@ def test_twelve_items_each_with_its_upc(po):
 
 
 def test_first_row_and_edge_cases(po):
+    # Every column of row 1, then two edge cases: a description containing
+    # "F/Q" (row 8) and the widest EXT COST, 124801.600 (row 5).
     first = po.items[0]
     assert (first.dept, first.vendor_part) == ("210", "04212")
     assert first.description == "NORDPEAK ASHER T CMFST GRY"
@@ -93,6 +109,7 @@ def test_first_row_and_edge_cases(po):
 
 
 def test_missing_upc_raises_naming_the_sku():
+    # A missing UPC must stop the run, not shift every later UPC up one row.
     text = SAMPLE.read_text(encoding="utf-8").replace("    0091120032129\n", "")
     with pytest.raises(ValueError, match="71097188"):
         pe.parse(text)
@@ -100,6 +117,7 @@ def test_missing_upc_raises_naming_the_sku():
 
 def test_unreadable_item_row_raises_instead_of_being_dropped():
     # A row with a missing number no longer matches the item regex.
+    # The error must name the line instead of silently writing 11 rows.
     text = SAMPLE.read_text(encoding="utf-8").replace("  68     2      136", "  68     2")
     with pytest.raises(ValueError, match="line 25 is not an item row"):
         pe.parse(text)
@@ -109,11 +127,13 @@ def test_unreadable_item_row_raises_instead_of_being_dropped():
 
 
 def test_sample_has_no_flags(po):
+    # The sample is internally consistent, so a clean run has zero flags.
     assert pe.all_flags(po) == []
     assert po.totals == pe.Totals(Decimal("447455.120"), 3475, 6950, Decimal("119.18"))
 
 
 def test_tampered_rows_are_flagged(po):
+    # A wrong EXT QTY also breaks EXT Cost (COST x EXT QTY); a wrong EXT Cost alone flags one.
     bad_qty = replace(po.items[0], ext_qty=135)
     assert [flag.column for flag in pe.check_item(bad_qty)] == ["EXT QTY", "EXT Cost"]
     bad_cost = replace(po.items[0], ext_cost=Decimal("6718.401"))
@@ -121,6 +141,8 @@ def test_tampered_rows_are_flagged(po):
 
 
 def test_tampered_text_is_flagged_in_rows_and_totals():
+    # Same check end to end from the text: one changed number shows up on the
+    # row and in the TOTALS comparison.
     text = SAMPLE.read_text(encoding="utf-8").replace(
         "   673     2     1346", "   673     2     1347"
     )
@@ -133,6 +155,7 @@ def test_tampered_text_is_flagged_in_rows_and_totals():
 
 
 def test_header_row_and_sheets_match_template(po, tmp_path):
+    # The output keeps the template's single sheet and header row, with 12 item rows.
     out = tmp_path / "out.xlsx"
     pe.write_xlsx(po, SAMPLE.name, TEMPLATE, out)
     workbook = load_workbook(out)
@@ -144,6 +167,7 @@ def test_header_row_and_sheets_match_template(po, tmp_path):
 
 
 def test_row_values(po, tmp_path):
+    # Values read back from the saved file. Header fields repeat on every row.
     sheet = write_and_open(po, tmp_path)
     first = row_as_dict(sheet, 2)
     assert first["FILENAME"] == "purchase_order_sample.txt"
@@ -158,6 +182,7 @@ def test_row_values(po, tmp_path):
 
 
 def test_leading_zeros_preserved(po, tmp_path):
+    # Code columns are strings in Text ("@") format, so Excel keeps leading zeros.
     sheet = write_and_open(po, tmp_path)
     first = row_as_dict(sheet, 2)
     assert first["UPC"] == "0091120032129"
@@ -169,6 +194,8 @@ def test_leading_zeros_preserved(po, tmp_path):
 
 
 def test_flag_lands_on_the_failing_cell(po, tmp_path):
+    # A bad row gets the red fill and comment on the exact cell (T = EXT QTY,
+    # Q = EXT Cost), and the next row stays clean.
     bad_items = (replace(po.items[0], ext_qty=135),) + po.items[1:]
     sheet = write_and_open(replace(po, items=bad_items), tmp_path)
     ext_qty = sheet["T2"]
@@ -180,6 +207,7 @@ def test_flag_lands_on_the_failing_cell(po, tmp_path):
 
 
 def test_unknown_template_column_raises(po, tmp_path):
+    # A template column with no mapping fails loudly instead of being left blank.
     template = tmp_path / "template.xlsx"
     workbook = load_workbook(TEMPLATE)
     sheet = workbook["Sheet1"]
@@ -193,12 +221,14 @@ def test_unknown_template_column_raises(po, tmp_path):
 
 
 def run_main(tmp_path, input_path=SAMPLE, *extra):
+    """Call main() as the command line would, writing into tmp_path."""
     out = tmp_path / "out.xlsx"
     args = ["--input", str(input_path), "--template", str(TEMPLATE), "--output", str(out)]
     return pe.main(args + list(extra))
 
 
 def test_main_exit_code_zero_on_sample(tmp_path, capsys):
+    # Clean run: exit 0, spreadsheet written, and no JSON unless --json is given.
     assert run_main(tmp_path) == 0
     assert (tmp_path / "out.xlsx").exists()
     assert not (tmp_path / "TX9K2QP.json").exists()
@@ -206,6 +236,7 @@ def test_main_exit_code_zero_on_sample(tmp_path, capsys):
 
 
 def test_main_exit_code_one_when_flagged(tmp_path, capsys):
+    # Exit 1 when anything is flagged, so a script or CI can catch it.
     tampered = tmp_path / "tampered.txt"
     tampered.write_text(
         SAMPLE.read_text(encoding="utf-8").replace("6718.400", "6718.401"),
@@ -216,6 +247,7 @@ def test_main_exit_code_one_when_flagged(tmp_path, capsys):
 
 
 def test_json_export(tmp_path):
+    # --json writes the Next.js seed. The keys must match the app's Order and LineItem types.
     assert run_main(tmp_path, SAMPLE, "--json") == 0
     order = json.loads((tmp_path / "TX9K2QP.json").read_text(encoding="utf-8"))
     assert set(order) == {
