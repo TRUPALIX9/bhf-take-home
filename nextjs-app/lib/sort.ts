@@ -42,11 +42,12 @@ export function nextSort(current: Sort, key: SortKey): Sort {
 }
 
 /** The list filters that live in the URL next to the sort (see lib/filters.ts). */
-export type Filters = { status?: string; country?: string[]; vendor?: string[]; master?: string[] };
+export type Filters = { q?: string; status?: string; country?: string[]; vendor?: string[]; master?: string[] };
 
 /** Builds the list URL for the filters and a sort, leaving out empty values and defaults. */
-export function listHref({ status, country = [], vendor = [], master = [] }: Filters, sort: Sort): string {
+export function listHref({ q, status, country = [], vendor = [], master = [] }: Filters, sort: Sort): string {
   const params = new URLSearchParams();
+  if (q) params.set("q", q);
   if (status) params.set("status", status);
   if (country.length) params.set("country", country.join(","));
   if (vendor.length) params.set("vendor", vendor.join(","));

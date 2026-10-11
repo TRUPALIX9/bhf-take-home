@@ -61,7 +61,8 @@ Arrows point from a module to what it uses. Only `lib/orders.ts` touches data.
 flowchart TD
   List["app/page.tsx<br/>heading + 2 Suspense parts"] --> Toolbar["OrdersToolbar (server)<br/>tab counts + facet options"]
   List --> Table["OrdersTable (server)<br/>rows grouped by master PO"]
-  Toolbar --> Tabs["StatusTabs (client)<br/>status filter"]
+  Toolbar --> Tabs["StatusSelect (client)<br/>status menu"]
+  Toolbar --> SB["SearchBox (client)<br/>?q= search"]
   Toolbar --> FM["FiltersMenu (client)<br/>origin, vendor, master PO"]
   Table --> MG["MasterGroup (client)<br/>collapsible"]
   Toolbar --> F["lib/filters.ts<br/>matches + facetOptions"]
@@ -137,15 +138,15 @@ sequenceDiagram
   end
 ```
 
-### Tab switch lifecycle (only the table reloads)
+### Status change lifecycle (only the table reloads)
 
 ```mermaid
 sequenceDiagram
   participant U as Reviewer
-  participant T as StatusTabs (client)
+  participant T as StatusSelect (client)
   participant S as Next.js server
-  U->>T: click "Approved"
-  T->>T: useOptimistic: tab highlighted + spinner at once
+  U->>T: choose "Approved" in the Status menu
+  T->>T: menu closes, spinner on the Status button
   T->>S: router.push("/?status=approved") in a transition
   Note over T,S: Toolbar boundary has no key: stays on screen.<br/>Table boundary is keyed by filters and sort: only it reloads.
   S-->>T: new table rows (getOrders read once via cache())

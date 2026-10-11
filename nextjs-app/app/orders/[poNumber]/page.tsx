@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 type Props = {
   params: Promise<{ poNumber: string }>;
   // ?lines=extCost&dir=desc sorts the line items; none keeps the printed order.
-  searchParams: Promise<{ lines?: string; dir?: string }>;
+  searchParams: Promise<{ lines?: string; dir?: string; find?: string }>;
 };
 
 /** Browser tab title, e.g. "PO TX9K2QP · PO Review" (suffix from the layout template). */
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** Breadcrumb plus the streamed order detail for one PO. */
 export default async function OrderPage({ params, searchParams }: Props) {
   const { poNumber } = await params;
-  const { lines, dir } = await searchParams;
+  const { lines, dir, find } = await searchParams;
   // Check before anything streams, so an unknown PO gets a real 404 status.
   // notFound() throws and renders the sibling not-found.tsx.
   if (!orderExists(poNumber)) notFound();
@@ -58,7 +58,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
       </nav>
       {/* The breadcrumb shows at once; the order data streams in when ready. */}
       <Suspense fallback={<OrderDetailSkeleton />}>
-        <OrderDetail poNumber={poNumber} lineSort={parseLineSort(lines, dir)} />
+        <OrderDetail poNumber={poNumber} lineSort={parseLineSort(lines, dir)} find={find?.slice(0, 60)} />
       </Suspense>
     </div>
   );

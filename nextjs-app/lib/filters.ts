@@ -12,7 +12,10 @@
  * - Each group only offers values that would return POs given the other group and the tab,
  *   with counts. A ticked value always stays visible so it can be unticked.
  *
- * Everything lives in the URL (?status=pending&country=CHN,PAK&vendor=50201&master=TX9H1LM),
+ * A search box (?q=) narrows by PO number, vendor, master PO, port, country, or anything on the
+ * lines (SKU, UPC, vendor part, description), together with everything else.
+ *
+ * Everything lives in the URL (?q=simone&status=pending&country=CHN,PAK&vendor=50201&master=TX9H1LM),
  * so every view is a shareable link and the server can render it. Pure functions.
  */
 import { titleCase, vendorName, vendorNumber } from "@/lib/format";
@@ -20,7 +23,7 @@ import { countryName, originOf } from "@/lib/origin";
 import { reviewStatuses, type Order, type ReviewStatus } from "@/lib/types";
 
 export type Facet = "country" | "vendor" | "master";
-export type ListFilters = { status?: ReviewStatus } & Record<Facet, string[]>;
+export type ListFilters = { status?: ReviewStatus; q?: string } & Record<Facet, string[]>;
 
 // What each facet reads from an order, how its values must look in the URL, and how to label them.
 const facetDef: Record<Facet, { valueOf: (o: Order) => string | undefined; pattern: RegExp; title: string }> = {
@@ -36,12 +39,13 @@ function parseList(value: string | undefined, pattern: RegExp): string[] {
 }
 
 /** Reads the filters from URL values. Anything that isn't a real value is ignored. */
-export function parseFilters(params: Partial<Record<"status" | Facet, string>>): ListFilters {
+export function parseFilters(params: Partial<Record<"status" | "q" | Facet, string>>): ListFilters {
   return {
     status: reviewStatuses.find((s) => s === params.status),
     country: parseList(params.country, facetDef.country.pattern),
     vendor: parseList(params.vendor, facetDef.vendor.pattern),
     master: parseList(params.master, facetDef.master.pattern),
+    q: params.q?.trim().slice(0, 60) || undefined,
   };
 }
 
@@ -52,11 +56,26 @@ export function filtersFromSearchParams(params: { get(name: string): string | nu
     country: params.get("country") ?? undefined,
     vendor: params.get("vendor") ?? undefined,
     master: params.get("master") ?? undefined,
+    q: params.get("q") ?? undefined,
   });
 }
 
-/** True when the order passes the status tab, the origin & vendor tree, and the master PO list. */
+/**
+ * True when the order matches the search text: its PO number, vendor, master PO, ship terms,
+ * or anything on its lines (SKU, UPC, vendor part, description). Case doesn't matter.
+ */
+export function matchesSearch(order: Order, q: string | undefined): boolean {
+  if (!q) return true;
+  const needle = q.toLowerCase();
+  const fields = [order.poNumber, order.refMasterPo, order.shipTerms, ...order.vendor];
+  for (const l of order.lines) fields.push(l.sku, l.upc, l.vendorPart, l.description);
+  return fields.some((f) => f.toLowerCase().includes(needle)) || countryNameOf(order).toLowerCase().includes(needle);
+}
+const countryNameOf = (order: Order) => countryName(originOf(order).country ?? "");
+
+/** True when the order passes the search, the status tab, the origin & vendor tree, and the master PO list. */
 export function matches(order: Order, filters: ListFilters): boolean {
+  if (!matchesSearch(order, filters.q)) return false;
   if (filters.status && order.status !== filters.status) return false;
   const { country, vendor, master } = filters;
   const inOrigin =

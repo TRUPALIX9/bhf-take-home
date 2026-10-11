@@ -24,8 +24,8 @@ import { listHref, nextSort, sortOrders, type Sort, type SortKey } from "@/lib/s
 type Filters = ListFilters;
 
 /** What to say when the filters leave no rows. */
-function emptyMessage({ status, country, vendor, master }: Filters): { title: string; detail: string; caughtUp: boolean } {
-  const where = (country.length ? ` from ${country.map(countryName).join(" or ")}` : "") + (vendor.length ? " for these vendors" : "") + (master.length ? ` under master PO ${master.join(" or ")}` : "");
+function emptyMessage({ q, status, country, vendor, master }: Filters): { title: string; detail: string; caughtUp: boolean } {
+  const where = (country.length ? ` from ${country.map(countryName).join(" or ")}` : "") + (vendor.length ? " for these vendors" : "") + (master.length ? ` under master PO ${master.join(" or ")}` : "") + (q ? ` matching "${q}"` : "");
   if (status === "pending") {
     return { title: `No POs waiting for review${where}`, detail: "All caught up. New POs will show here.", caughtUp: true };
   }

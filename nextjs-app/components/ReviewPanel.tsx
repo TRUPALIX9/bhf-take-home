@@ -9,7 +9,7 @@
  *   Pending review ── Approve ──────────────────────────► Approved (released downstream)
  *   Pending review ── Send back for correction (note) ──► Needs correction
  *   Needs correction ── Corrected PO received ──────────► Pending review
- *   Approved ── Undo approval ──────────────────────────► Pending review
+ *   Approved ── Revoke approval ────────────────────────► Pending review
  * Every step asks for confirmation first.
  */
 
@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import type { ReviewStatus } from "@/lib/types";
 
-type Decision = "approve" | "correction" | "corrected" | "undo";
+type Decision = "approve" | "correction" | "corrected" | "revoke";
 
 // What each step sets, and how its button and dialog read.
 const decisions: Record<Decision, { status: ReviewStatus; title: string; body?: string; confirm: string }> = {
@@ -42,11 +42,11 @@ const decisions: Record<Decision, { status: ReviewStatus; title: string; body?: 
     body: "Use this when the vendor has sent the fix. The PO goes back to Pending review.",
     confirm: "Review again",
   },
-  undo: {
+  revoke: {
     status: "pending",
-    title: "Undo the approval?",
-    body: "The PO goes back to Pending review and is no longer released downstream.",
-    confirm: "Undo approval",
+    title: "Revoke the approval?",
+    body: "The PO goes back to Pending review and is held from downstream systems until it is approved again.",
+    confirm: "Revoke approval",
   },
 };
 
@@ -140,8 +140,8 @@ export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, 
               </>
             )}
             {shown === "approved" && (
-              <Button variant="secondary" pending={isPending} onClick={() => setDecision("undo")}>
-                Undo approval
+              <Button variant="secondary" pending={isPending} onClick={() => setDecision("revoke")}>
+                Revoke approval
               </Button>
             )}
             {shown === "needs_correction" && (

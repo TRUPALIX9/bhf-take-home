@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 // In Next 15 searchParams is a Promise.
 type Props = {
-  searchParams: Promise<{ status?: string; country?: string; vendor?: string; master?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; country?: string; vendor?: string; master?: string; sort?: string; dir?: string }>;
 };
 
 /** The list page: heading, then one card with the toolbar and the table. */
@@ -41,7 +41,7 @@ export default async function OrdersPage({ searchParams }: Props) {
           <OrdersToolbar filters={filters} />
         </Suspense>
         <Suspense
-          key={`${filters.status}-${filters.country}-${filters.vendor}-${filters.master}-${sort.key}-${sort.dir}`}
+          key={`${filters.q}-${filters.status}-${filters.country}-${filters.vendor}-${filters.master}-${sort.key}-${sort.dir}`}
           fallback={<TableSkeleton />}
         >
           <OrdersTable filters={filters} sort={sort} />

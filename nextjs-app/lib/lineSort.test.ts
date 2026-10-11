@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 const { getOrder } = await import("@/lib/orders");
-const { lineSortHref, nextLineSort, parseLineSort, sortLines } = await import("@/lib/lineSort");
+const { findLines, lineSortHref, nextLineSort, parseLineSort, sortLines } = await import("@/lib/lineSort");
 
 const lines = (await getOrder("TX9K2QP"))!.lines;
 const skus = (list: { sku: string }[]) => list.map((l) => l.sku);
@@ -34,5 +34,16 @@ describe("line sort", () => {
   it("builds the PO page URL", () => {
     expect(lineSortHref("TX9K2QP", { key: "extCost", dir: "desc" })).toBe("/orders/TX9K2QP?lines=extCost&dir=desc");
     expect(lineSortHref("TX9K2QP", undefined)).toBe("/orders/TX9K2QP");
+  });
+});
+
+describe("line search", () => {
+  it("finds lines by description, SKU, UPC or vendor part, ignoring case", () => {
+    expect(findLines(lines, "simone k").map((l) => l.sku)).toEqual(["71097232", "71293283"]);
+    expect(findLines(lines, "71097188")).toHaveLength(1);
+    expect(findLines(lines, "0091120032426")).toHaveLength(1);
+    expect(findLines(lines, "04237")).toHaveLength(1);
+    expect(findLines(lines, "  ")).toBe(lines);
+    expect(findLines(lines, "nothing like this")).toEqual([]);
   });
 });

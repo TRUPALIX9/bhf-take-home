@@ -18,7 +18,8 @@ import {
   splitCode,
   titleCase,
 } from "@/lib/format";
-import { lineSortHref, nextLineSort, sortLines, type LineSort, type LineSortKey } from "@/lib/lineSort";
+import { findLines, lineSortHref, nextLineSort, sortLines, type LineSort, type LineSortKey } from "@/lib/lineSort";
+import { SearchBox } from "@/components/SearchBox";
 import type { Order } from "@/lib/types";
 
 /** Small uppercase label used for every field name on the document, as on a printed form. */
@@ -48,21 +49,23 @@ export function PurchaseOrderDocument({
   order,
   masterCount,
   lineSort,
+  find,
 }: {
   order: Order;
   masterCount: number;
   lineSort: LineSort;
+  find?: string; // line search text (?find=)
 }) {
   // --- Data ---
   const totals = lineTotals(order.lines);
-  const lines = sortLines(order.lines, lineSort);
+  const lines = sortLines(findLines(order.lines, find), lineSort);
   // Sortable header for a line-item column; clicking cycles sorted, reversed, printed order.
   const sortTh = (label: string, key: LineSortKey, align?: "left" | "right", hint?: string) => (
     <SortTh
       dense
       label={label}
       hint={hint}
-      href={lineSortHref(order.poNumber, nextLineSort(lineSort, key))}
+      href={lineSortHref(order.poNumber, nextLineSort(lineSort, key), find)}
       dir={lineSort?.key === key ? lineSort.dir : undefined}
       align={align}
     />
@@ -125,6 +128,16 @@ export function PurchaseOrderDocument({
         ))}
       </dl>
 
+      {/* Line search: narrows the rows below; the totals stay those of the whole PO. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+        <div className="w-full sm:w-80">
+          <SearchBox param="find" label="Search line items" placeholder="SKU, UPC, part or description…" />
+        </div>
+        <span className="text-xs text-muted" data-testid="line-count">
+          {lines.length === order.lines.length ? `${order.lines.length} lines` : `${lines.length} of ${order.lines.length} lines`}
+        </span>
+      </div>
+
       {/* Line items in the PO's own column order; ext cost and ext qty sort. Wide, so it scrolls inside its own box. */}
       <div className="relative overflow-x-auto" role="region" tabIndex={0} aria-label="Line items, scrolls sideways">
         <table className="w-full min-w-[60rem]">
@@ -147,6 +160,13 @@ export function PurchaseOrderDocument({
             </tr>
           </thead>
           <tbody>
+            {lines.length === 0 && (
+              <tr>
+                <td colSpan={12} className="px-4 py-8 text-center text-muted">
+                  No lines match &ldquo;{find}&rdquo;.
+                </td>
+              </tr>
+            )}
             {lines.map((l, i) => (
               // Light zebra rows help the eye follow a wide row across.
               <tr key={l.sku} className={`border-t border-line ${i % 2 ? "bg-subtle/60" : ""}`}>

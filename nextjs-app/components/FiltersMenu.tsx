@@ -223,7 +223,7 @@ export function FiltersMenu({ options }: { options: Options }) {
   function apply(next: Selection) {
     setSel(next);
     startTransition(() =>
-      router.push(listHref({ status: applied.status, ...next }, sort), {
+      router.push(listHref({ q: applied.q, status: applied.status, ...next }, sort), {
         scroll: false,
       }),
     );

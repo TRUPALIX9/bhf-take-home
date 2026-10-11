@@ -1,5 +1,5 @@
 /**
- * Sorting for the line items on a PO page (?lines=extCost&dir=desc). Pure functions.
+ * Sorting and searching the line items on a PO page (?lines=extCost&dir=desc&find=simone). Pure functions.
  * With no sort, lines stay in the order printed on the PO. Clicking a header cycles:
  * sorted -> reversed -> back to printed order.
  */
@@ -39,7 +39,21 @@ export function nextLineSort(current: LineSort, key: LineSortKey): LineSort {
   return undefined; // back to printed order
 }
 
-/** URL for the PO page with a line sort (none = printed order). */
-export function lineSortHref(poNumber: string, sort: LineSort): string {
-  return sort ? `/orders/${poNumber}?lines=${sort.key}&dir=${sort.dir}` : `/orders/${poNumber}`;
+/** URL for the PO page with a line sort (none = printed order), keeping a line search if there is one. */
+export function lineSortHref(poNumber: string, sort: LineSort, find?: string): string {
+  const params = new URLSearchParams();
+  if (sort) {
+    params.set("lines", sort.key);
+    params.set("dir", sort.dir);
+  }
+  if (find) params.set("find", find);
+  const query = params.toString();
+  return query ? `/orders/${poNumber}?${query}` : `/orders/${poNumber}`;
+}
+
+/** Lines matching a search on the PO page (?find=): SKU, UPC, vendor part or description. */
+export function findLines(lines: LineItem[], find: string | undefined): LineItem[] {
+  const needle = find?.trim().toLowerCase();
+  if (!needle) return lines;
+  return lines.filter((l) => [l.sku, l.upc, l.vendorPart, l.description].some((f) => f.toLowerCase().includes(needle)));
 }

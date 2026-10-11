@@ -40,10 +40,10 @@ test("README screenshots", async ({ page }) => {
   await page.getByRole("button", { name: "Approve" }).click();
   await page.screenshot({ path: `${dir}/confirm.png`, clip: { x: 240, y: 200, width: 800, height: 400 } });
   await page.getByRole("dialog").getByRole("button", { name: "Approve PO" }).click();
-  await expect(page.getByRole("button", { name: "Undo approval" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Revoke approval" })).toBeVisible();
   await page.screenshot({ path: `${dir}/detail-approved.png`, clip: { x: 0, y: 0, width: 1280, height: 260 } });
-  await page.getByRole("button", { name: "Undo approval" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Undo approval" }).click();
+  await page.getByRole("button", { name: "Revoke approval" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Revoke approval" }).click();
   await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
 
   await page.goto("/orders/TX9K5DC"); // fails on purpose (FAIL_PO in playwright.config.ts)

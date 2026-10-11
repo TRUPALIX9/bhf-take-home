@@ -78,3 +78,20 @@ describe("filterOptions", () => {
     expect(opts({ status: "approved", country: ["PAK"] }).origin.map((c) => `${c.value}:${c.count}`)).toEqual(["CHN:1", "PAK:0"]);
   });
 });
+
+describe("search", () => {
+  it("finds POs by number, vendor, master PO, country, or anything on the lines", () => {
+    expect(ids({ q: "tx9k3ra" })).toEqual(["TX9K3RA"]);
+    expect(ids({ q: "harbor" })).toEqual(["TX9K2QP"]);
+    expect(ids({ q: "TX9H2QN" })).toEqual(["TX9K4MB", "TX9K5DC"]);
+    expect(ids({ q: "pakistan" })).toEqual(["TX9K4MB"]);
+    expect(ids({ q: "simone" })).toEqual(["TX9K2QP"]); // a comforter description on TX9K2QP's lines
+    expect(ids({ q: "0091120032129" })).toEqual(["TX9K2QP"]); // a UPC
+  });
+
+  it("combines with the other filters and trims long or blank text", () => {
+    expect(ids({ q: "china", status: "approved" })).toEqual(["TX9K3RA"]);
+    expect(parseFilters({ q: "   " }).q).toBeUndefined();
+    expect(parseFilters({ q: "x".repeat(100) }).q).toHaveLength(60);
+  });
+});

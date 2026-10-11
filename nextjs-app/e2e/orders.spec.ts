@@ -5,12 +5,16 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 
-/** The number on the "Approved" tab. */
+/** How many POs are approved: the list filtered by status shows "Showing N of 4". */
 async function approvedCount(page: Page): Promise<number> {
-  await page.goto("/");
-  // The "Approved" tab shows its count, e.g. "Approved 1".
-  const text = await page.getByRole("link", { name: /^Approved/ }).innerText();
-  return Number(text.replace(/\D/g, ""));
+  await page.goto("/?status=approved");
+  return shownCount(page);
+}
+
+/** The N in "Showing N of 4 purchase orders" under the toolbar. */
+async function shownCount(page: Page): Promise<number> {
+  const text = await page.getByTestId("result-count").innerText();
+  return Number(text.match(/Showing (\d+)/)![1]);
 }
 
 // --- list and detail ---
@@ -50,8 +54,8 @@ test.describe("review status", () => {
   // even if a test fails half way.
   const resetToPending = async ({ page }: { page: Page }) => {
     await page.goto(po);
-    if (await page.getByRole("button", { name: "Undo approval" }).isVisible()) {
-      await decide(page, "Undo approval", "Undo approval");
+    if (await page.getByRole("button", { name: "Revoke approval" }).isVisible()) {
+      await decide(page, "Revoke approval", "Revoke approval");
       // The badge changes at once (optimistic); the buttons change when the save is done.
       await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
     }
@@ -77,7 +81,7 @@ test.describe("review status", () => {
 
     // Confirm approves it, and it is stored on the server: survives a reload, counted on the list.
     await decide(page, "Approve", "Approve PO");
-    await expect(page.getByRole("button", { name: "Undo approval" })).toBeVisible(); // saved
+    await expect(page.getByRole("button", { name: "Revoke approval" })).toBeVisible(); // saved
     await page.reload();
     await expect(status).toHaveText("Approved");
     expect(await approvedCount(page)).toBe(before + 1);
@@ -101,12 +105,12 @@ test.describe("review status", () => {
     await expect(page.getByTestId("status")).toHaveText("Pending review");
   });
 
-  test("undoing an approval asks for confirmation", async ({ page }) => {
+  test("revoking an approval asks for confirmation", async ({ page }) => {
     await page.goto(po);
     await decide(page, "Approve", "Approve PO");
-    await page.getByRole("button", { name: "Undo approval" }).click();
-    await expect(page.getByRole("dialog")).toContainText("no longer released downstream");
-    await page.getByRole("dialog").getByRole("button", { name: "Undo approval" }).click();
+    await page.getByRole("button", { name: "Revoke approval" }).click();
+    await expect(page.getByRole("dialog")).toContainText("held from downstream systems");
+    await page.getByRole("dialog").getByRole("button", { name: "Revoke approval" }).click();
     await expect(page.getByTestId("status")).toHaveText("Pending review");
   });
 
@@ -117,10 +121,10 @@ test.describe("review status", () => {
 
     await page.goto(po);
     await decide(page, "Approve", "Approve PO");
-    await expect(page.getByRole("button", { name: "Undo approval" })).toBeVisible(); // saved
+    await expect(page.getByRole("button", { name: "Revoke approval" })).toBeVisible(); // saved
 
     await decide(stale, "Approve", "Approve PO");
-    await expect(stale.getByRole("button", { name: "Undo approval" })).toBeVisible();
+    await expect(stale.getByRole("button", { name: "Revoke approval" })).toBeVisible();
     await stale.reload();
     await expect(stale.getByTestId("status")).toHaveText("Approved");
     await stale.close();
@@ -153,8 +157,13 @@ test("pages never scroll sideways, at phone, tablet and desktop widths", async (
 
 // The filter is in the URL, so it works on first load and can be shared.
 // TX9K3RA is the only PO approved in the seed.
-test("status tabs filter the list", async ({ page }) => {
-  await page.goto("/?status=approved");
+test("the status dropdown filters the list", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Status: All" }).click();
+  await expect(page.getByRole("menuitemradio", { name: /Approved/ })).toContainText("Released to downstream systems");
+  await page.getByRole("menuitemradio", { name: /Approved/ }).click();
+  await expect(page.getByRole("button", { name: "Status: Approved" })).toBeVisible();
+  await expect(page).toHaveURL(/status=approved/);
   const rows = page.locator("table tbody tr:has(td), ul li").filter({ visible: true }); // PO rows, not master-PO headers
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("TX9K3RA");
@@ -195,21 +204,21 @@ test("Filters: origin and vendor as a tree, grouped chips, Clear all", async ({ 
   await page.goto("/");
   await page.getByRole("button", { name: /^Filters/ }).click();
   const panel = page.getByRole("dialog", { name: "Filter purchase orders" });
-  const allTab = page.getByRole("link", { name: /^All/ });
+  const shown = page.getByTestId("result-count");
 
   // Ticking a country ticks every vendor under it, and filters at once.
   await panel.getByLabel(/^China/).check();
   await expect(page).toHaveURL(/country=CHN/);
   await expect(panel.getByLabel(/^Harbor Point/)).toBeChecked();
-  await expect(allTab).toContainText("3");
+  await expect(shown).toContainText("Showing 3 ")
 
   // A vendor from another country adds to it (country OR vendor): all four POs.
   await panel.getByLabel(/^Indus Home Mills/).check();
-  await expect(allTab).toContainText("4");
+  await expect(shown).toContainText("Showing 4 ")
 
   // Unticking one vendor of a fully ticked country keeps the others: 3 POs, China partly ticked.
   await panel.getByLabel(/^Harbor Point/).uncheck();
-  await expect(allTab).toContainText("3");
+  await expect(shown).toContainText("Showing 3 ")
   await expect(panel.getByLabel(/^China/)).not.toBeChecked();
   await page.getByRole("button", { name: "Done" }).click();
 
@@ -217,11 +226,11 @@ test("Filters: origin and vendor as a tree, grouped chips, Clear all", async ({ 
   // Indus is Pakistan's only vendor, so ticking it counts as all of Pakistan.
   await page.getByRole("button", { name: "Origin & vendor (3)" }).click();
   await page.getByRole("button", { name: "Remove filter Pakistan" }).click();
-  await expect(allTab).toContainText("2");
+  await expect(shown).toContainText("Showing 2 ")
 
   await page.getByRole("button", { name: "Clear all" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(allTab).toContainText("4");
+  await expect(shown).toContainText("Showing 4 ")
 });
 
 test("clicking anywhere on a row opens the PO", async ({ page, isMobile }) => {
@@ -246,7 +255,7 @@ test("Ref master PO opens the list of POs that share it", async ({ page }) => {
   await page.getByRole("article").getByRole("link", { name: /TX9H1LM/ }).click();
   await expect(page).toHaveURL(/master=TX9H1LM/);
   await expect(page.getByRole("button", { name: "Remove filter Master PO TX9H1LM" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^All/ })).toContainText("2"); // TX9K2QP and TX9K3RA
+  await expect(page.getByTestId("result-count")).toContainText("Showing 2 "); // TX9K2QP and TX9K3RA
 });
 
 test("the PO page breadcrumb shows its master PO", async ({ page }) => {
@@ -287,4 +296,27 @@ test("the i button explains what was checked", async ({ page }) => {
   await page.getByLabel("How this PO was checked").click();
   await expect(page.getByText("All 7 checks passed")).toBeVisible();
   await expect(page.getByText("Each line's units equal its cartons times the number per carton.")).toBeVisible();
+});
+
+// --- search ---
+
+test("searching the list finds POs by what's on them, and keeps the filters", async ({ page }) => {
+  await page.goto("/?status=pending");
+  await page.getByLabel("Search purchase orders").fill("simone"); // a comforter on TX9K2QP's lines
+  await expect(page).toHaveURL(/q=simone/);
+  await expect(page).toHaveURL(/status=pending/);
+  await expect(page.getByTestId("result-count")).toContainText("Showing 1 ");
+
+  await page.getByLabel("Search purchase orders").fill("no such thing");
+  await expect(page.getByText(/No POs waiting for review matching "no such thing"/)).toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.getByTestId("result-count")).toContainText("Showing 3 ");
+});
+
+test("searching a PO's line items narrows the rows but not the totals", async ({ page }) => {
+  await page.goto("/orders/TX9K2QP");
+  await page.getByLabel("Search line items").fill("simone k");
+  await expect(page.getByTestId("line-count")).toHaveText("2 of 12 lines");
+  await expect(page.locator("article tbody tr")).toHaveCount(2);
+  await expect(page.getByTestId("lines-total")).toHaveText("$447,455.12"); // still the whole PO
 });

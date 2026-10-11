@@ -20,7 +20,7 @@ import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrder, getOrders } from "@/lib/orders";
 
 /** Everything on the PO page below the breadcrumb. Streams in behind OrderDetailSkeleton. */
-export async function OrderDetail({ poNumber, lineSort }: { poNumber: string; lineSort: LineSort }) {
+export async function OrderDetail({ poNumber, lineSort, find }: { poNumber: string; lineSort: LineSort; find?: string }) {
   // --- Data ---
   const order = await getOrder(poNumber);
   // The page already returned a real 404 via orderExists(); this only guards the type.
@@ -46,7 +46,7 @@ export async function OrderDetail({ poNumber, lineSort }: { poNumber: string; li
       />
 
       {/* 2. The record: the PO as a document */}
-      <PurchaseOrderDocument order={order} masterCount={masterCount} lineSort={lineSort} />
+      <PurchaseOrderDocument order={order} masterCount={masterCount} lineSort={lineSort} find={find} />
     </div>
   );
 }
