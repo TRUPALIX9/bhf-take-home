@@ -145,7 +145,8 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Tests
 
-- **Unit (Vitest, 12 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, money and date formatting.
+- **Unit (Vitest, 23 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money and date formatting.
+- **Malformed input to the server action (Vitest, in the 23):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
 - **End to end (Playwright, 10 tests × desktop and 375 px phone):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; approving from an out-of-date second tab keeps the PO approved; the step tracker moves to "Can be sent on" and back; tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
 
 ## With more time

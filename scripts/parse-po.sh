@@ -11,7 +11,8 @@
 #   --json             also write <PO#>.json next to the spreadsheet (the app's seed format)
 #   -h, --help         show this help
 #
-# Exit code 0 when every check passes, 1 when anything is flagged.
+# Exit codes: 0 = all checks pass, 1 = written but rows are flagged,
+#             2 = the input could not be processed (one-line error, no traceback).
 #
 # Examples:
 #   scripts/parse-po.sh

@@ -266,3 +266,59 @@ def test_json_export(tmp_path):
     }
     assert first["upc"] == "0091120032129" and first["vendorPart"] == "04212"
     assert first["extCost"] == 6718.4 and first["extQty"] == 136
+
+
+# --- bad input ---
+# Anything the script can't process must end with one readable line on stderr and
+# exit code 2, never a traceback, so a person or a CI job can tell it apart from
+# "processed, but rows are flagged" (exit 1).
+
+
+def sample_with(tmp_path, old, new):
+    """A copy of the sample PO with one piece of text replaced."""
+    path = tmp_path / "edited.txt"
+    path.write_text(SAMPLE.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
+    return path
+
+
+def write_bytes(tmp_path, name, data):
+    path = tmp_path / name
+    path.write_bytes(data)
+    return path
+
+
+@pytest.mark.parametrize(
+    ("make_input", "expected"),
+    [
+        (lambda tmp: tmp / "missing.txt", "input file not found"),
+        (lambda tmp: tmp, "input is a folder"),
+        (lambda tmp: write_bytes(tmp, "empty.txt", b""), "the file is empty"),
+        (lambda tmp: write_bytes(tmp, "binary.txt", b"\xff\xfe\x00x"), "is not a text file"),
+        (lambda tmp: sample_with(tmp, "SHIP DATE: 5/02/26", "SHIP DATE: 13/45/26"), "'13/45/26' is not a valid date"),
+        (lambda tmp: sample_with(tmp, "TOTALS:", "SUBTOTAL:"), "TOTALS line not found"),
+        (lambda tmp: sample_with(tmp, "PO#: TX9K2QP", "PO: TX9K2QP"), "header field PO# not found"),
+        (lambda tmp: sample_with(tmp, "    0091120032129\n", ""), "has no UPC line"),
+    ],
+    ids=["missing", "folder", "empty", "binary", "bad-date", "no-totals", "no-po-number", "no-upc"],
+)
+def test_bad_input_gives_one_line_error_and_exit_2(tmp_path, capsys, make_input, expected):
+    assert run_main(tmp_path, make_input(tmp_path)) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("error: ") and expected in err
+    assert "Traceback" not in err
+    assert not (tmp_path / "out.xlsx").exists()  # nothing half-written
+
+
+def test_broken_template_gives_exit_2(tmp_path, capsys):
+    fake = write_bytes(tmp_path, "fake.xlsx", b"not a workbook")
+    args = ["--input", str(SAMPLE), "--template", str(fake), "--output", str(tmp_path / "o.xlsx")]
+    assert pe.main(args) == 2
+    assert "template is not a valid .xlsx" in capsys.readouterr().err
+
+
+def test_unwritable_output_gives_exit_2(tmp_path, capsys):
+    # A file where a folder should be: the output folder can't be created.
+    blocker = write_bytes(tmp_path, "blocker", b"")
+    args = ["--input", str(SAMPLE), "--template", str(TEMPLATE), "--output", str(blocker / "o.xlsx")]
+    assert pe.main(args) == 2
+    assert "could not write" in capsys.readouterr().err

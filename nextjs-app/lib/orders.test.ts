@@ -90,3 +90,29 @@ describe("isReviewStatus", () => {
     expect(isReviewStatus(null)).toBe(false);
   });
 });
+
+// --- seed data shape ---
+// The JSON is cast to Order[] without a runtime check, so this test is the check:
+// a missing field or a wrong type in data/orders.json fails here, not on a page.
+describe("seed data", () => {
+  it("has every field with the right type on every order and line", async () => {
+    for (const o of await getOrders()) {
+      expect(o.poNumber, "poNumber").toMatch(/^[A-Z0-9]+$/);
+      expect(o.poDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(o.shipDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(isReviewStatus(o.status), `${o.poNumber} status`).toBe(true);
+      for (const block of [o.vendor, o.shipTo, o.billTo]) expect(block.length).toBeGreaterThan(0);
+      expect(o.lines.length).toBeGreaterThan(0);
+      for (const l of o.lines) {
+        expect(l.upc, `${o.poNumber} ${l.sku} upc`).toMatch(/^\d{12,14}$/);
+        expect(l.cartons * l.casePack, `${o.poNumber} ${l.sku} qty`).toBe(l.extQty);
+        for (const n of [l.retail, l.cost, l.extCost, l.cube, l.kilograms]) expect(Number.isFinite(n)).toBe(true);
+      }
+    }
+  });
+
+  it("has no duplicate PO numbers", async () => {
+    const numbers = (await getOrders()).map((o) => o.poNumber);
+    expect(new Set(numbers).size).toBe(numbers.length);
+  });
+});

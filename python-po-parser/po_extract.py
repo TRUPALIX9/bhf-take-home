@@ -9,6 +9,8 @@ Sections, in order: model, parse, validate, write, main.
 import argparse
 import json
 import re
+import sys
+import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -141,11 +143,12 @@ class Flag:
 def parse(text: str) -> PurchaseOrder:
     """Parse the whole purchase order text."""
     lines = text.splitlines()
-    return PurchaseOrder(
-        header=parse_header(lines),
-        items=parse_items(lines),
-        totals=parse_totals(lines),
-    )
+    if not any(line.strip() for line in lines):
+        raise ValueError("the file is empty")
+    # TOTALS first: it marks the end of the item table, so without it the item
+    # parser would run into the footer and report a confusing line instead.
+    totals = parse_totals(lines)
+    return PurchaseOrder(header=parse_header(lines), items=parse_items(lines), totals=totals)
 
 
 def parse_header(lines: list[str]) -> Header:
@@ -175,7 +178,10 @@ def find_value(lines: list[str], pattern: re.Pattern, name: str) -> str:
 
 def to_date(text: str, date_format: str) -> date:
     """Turn a printed date like 5/02/26 into a real date."""
-    return datetime.strptime(text, date_format).date()
+    try:
+        return datetime.strptime(text, date_format).date()
+    except ValueError:
+        raise ValueError(f"{text!r} is not a valid date") from None
 
 
 def find_block_start(lines: list[str], title: str) -> int:
@@ -466,22 +472,62 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+# Exit codes: 0 = written, all checks pass; 1 = written, but rows are flagged;
+# 2 = could not process the input at all (nothing useful was written).
+EXIT_OK, EXIT_FLAGGED, EXIT_ERROR = 0, 1, 2
+
+
+def fail(message: str) -> int:
+    """Print a one-line error (no traceback) and return the error exit code."""
+    print(f"error: {message}", file=sys.stderr)
+    return EXIT_ERROR
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Parse, validate, write. Exit code 1 if anything was flagged.
+    """Parse, validate, write. Returns an exit code (see EXIT_* above).
 
     The spreadsheet is still written when there are flags, so a person can
     see the red cells. The exit code lets a script or CI notice the problem.
+    Bad input (missing file, not text, wrong layout, broken template, output
+    not writable) ends with a one-line message and exit code 2, never a traceback.
     """
     args = parse_args(argv)
-    po = parse(args.input.read_text(encoding="utf-8"))
-    write_xlsx(po, args.input.name, args.template, args.output)
+
+    # --- read and parse ---
+    try:
+        text = args.input.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return fail(f"input file not found: {args.input}")
+    except IsADirectoryError:
+        return fail(f"input is a folder, not a file: {args.input}")
+    except UnicodeDecodeError:
+        return fail(f"{args.input.name} is not a text file (it could not be read as UTF-8)")
+    try:
+        po = parse(text)
+    except ValueError as err:
+        return fail(f"{args.input.name} doesn't match the expected purchase order layout: {err}")
+
+    # --- write ---
+    try:
+        write_xlsx(po, args.input.name, args.template, args.output)
+        if args.json:
+            json_path = args.output.parent / f"{po.header.po_number}.json"
+            write_json(po, json_path)
+    except FileNotFoundError:
+        return fail(f"template not found: {args.template}")
+    except (zipfile.BadZipFile, KeyError):
+        # openpyxl raises BadZipFile for a non-xlsx file and KeyError when Sheet1 is missing.
+        return fail(f"template is not a valid .xlsx with a Sheet1: {args.template}")
+    except ValueError as err:
+        return fail(f"template doesn't match: {err}")
+    except OSError as err:
+        # Covers a read-only folder, a full disk, or the file being open in Excel on Windows.
+        return fail(f"could not write {err.filename or args.output}: {err.strerror}")
+
+    # --- report ---
     print(f"PO {po.header.po_number}: {len(po.items)} rows -> {args.output}")
-
     if args.json:
-        json_path = args.output.parent / f"{po.header.po_number}.json"
-        write_json(po, json_path)
         print(f"JSON -> {json_path}")
-
     totals = po.totals
     print(
         f"Totals: EXT COST {totals.ext_cost}, CTNS {totals.cartons}, "
@@ -491,7 +537,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Flags: {len(flags)}")
     for message in flags:
         print(f"  FLAG {message}")
-    return 1 if flags else 0
+    return EXIT_FLAGGED if flags else EXIT_OK
 
 
 if __name__ == "__main__":

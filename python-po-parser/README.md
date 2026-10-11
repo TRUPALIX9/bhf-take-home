@@ -20,6 +20,8 @@ python3 -m pytest -q
 
 Options: `--input`, `--template` and `--output` (defaults are the files above, relative to this folder). The script prints a short summary and exits with code 1 if anything is flagged.
 
+Exit codes: **0** written and every check passes; **1** written, but rows are flagged; **2** the input could not be processed. Code 2 always comes with a one-line `error:` message and never a traceback, for example `error: input file not found`, `error: binary.txt is not a text file`, `error: edited.txt doesn't match the expected purchase order layout: TOTALS line not found`, `error: template is not a valid .xlsx with a Sheet1`, or `error: could not write …`.
+
 ## Approach
 
 One module, five sections, in order:
@@ -88,7 +90,7 @@ Totals: EXT COST 447455.120, CTNS 3475, EXT QTY 6950, KG 119.18
 Flags: 0
 ```
 
-12 rows, 0 flags. Every row's EXT QTY and EXT Cost match, and the TOTALS line matches the sum of the rows. The tests tamper with the text to prove the flags do fire.
+12 rows, 0 flags. Every row's EXT QTY and EXT Cost match, and the TOTALS line matches the sum of the rows. The tests tamper with the text to prove the flags do fire. Separate tests feed it a missing file, a folder, an empty file, a binary file, a bad date, no TOTALS line, no PO number, a missing UPC, a broken template and an unwritable output path; each ends with exit code 2 and a one-line error.
 
 ## Assumptions
 
