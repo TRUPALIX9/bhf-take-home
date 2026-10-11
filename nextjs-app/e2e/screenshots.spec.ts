@@ -22,7 +22,8 @@ test("README screenshots", async ({ page }) => {
 
   // The Filters panel open, with one origin ticked.
   await page.getByRole("button", { name: /^Filters/ }).click();
-  await page.getByRole("dialog").getByLabel(/^China/).check();
+  await page.getByRole("dialog").getByLabel(/^Larkshore/).check();
+  await page.getByRole("dialog").getByLabel(/^Westlake/).check();
   await page.screenshot({ path: `${dir}/filters.png`, clip: { x: 0, y: 0, width: 1280, height: 560 } });
   await page.keyboard.press("Escape");
 

@@ -7,7 +7,7 @@
 
 import { FiltersMenu } from "@/components/FiltersMenu";
 import { StatusTabs } from "@/components/StatusTabs";
-import { facetOptions, matches, type ListFilters } from "@/lib/filters";
+import { filterOptions, matches, type ListFilters } from "@/lib/filters";
 import { getOrders } from "@/lib/orders";
 
 /** Tabs (counts follow the facet filters) and the Filters menu (options follow the tab). */
@@ -23,7 +23,7 @@ export async function OrdersToolbar({ filters }: { filters: ListFilters }) {
         counts={{ all: inView.length, pending: count("pending"), approved: count("approved"), needs_correction: count("needs_correction") }}
       />
       <div className="px-4 pb-3 md:p-0">
-        <FiltersMenu groups={facetOptions(orders, filters)} />
+        <FiltersMenu options={filterOptions(orders, filters)} />
       </div>
     </div>
   );

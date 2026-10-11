@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 const { getOrders } = await import("@/lib/orders");
-const { facetOptions, matches, parseFilters } = await import("@/lib/filters");
+const { filterOptions, matches, parseFilters } = await import("@/lib/filters");
 
 const orders = await getOrders();
 const none = { country: [], vendor: [], master: [] };
@@ -39,29 +39,42 @@ describe("filters", () => {
     expect(parseFilters({ master: "../x" }).master).toEqual([]);
   });
 
-  it("requires every group, and the status, to match", () => {
+  it("treats origin and vendor as one tree: a country OR a vendor", () => {
+    // China, plus Indus Home Mills (which ships from Pakistan): all four POs.
+    expect(ids({ country: ["CHN"], vendor: ["50417"] })).toEqual(["TX9K2QP", "TX9K3RA", "TX9K4MB", "TX9K5DC"]);
+    expect(ids({ vendor: ["50201", "50417"] })).toEqual(["TX9K2QP", "TX9K4MB"]);
+  });
+
+  it("requires the tree, the master PO list and the status to match together", () => {
     expect(ids({ status: "pending", country: ["CHN"] })).toEqual(["TX9K2QP", "TX9K5DC"]);
-    expect(ids({ country: ["CHN"], vendor: ["50201", "50417"] })).toEqual(["TX9K2QP"]);
-    expect(ids({ vendor: ["50201"], country: ["PAK"] })).toEqual([]);
+    expect(ids({ country: ["CHN"], master: ["TX9H2QN"] })).toEqual(["TX9K5DC"]);
   });
 });
 
-describe("facetOptions", () => {
-  const options = (f: Partial<Parameters<typeof matches>[1]>) =>
-    Object.fromEntries(facetOptions(orders, { ...none, ...f }).map((g) => [g.facet, g.options.map((o) => `${o.value}:${o.count}`)]));
+describe("filterOptions", () => {
+  const opts = (f: Partial<Parameters<typeof matches>[1]>) => filterOptions(orders, { ...none, ...f });
 
-  it("counts every value when nothing is set, most POs first", () => {
-    expect(options({}).country).toEqual(["CHN:3", "PAK:1"]);
-    expect(options({}).master).toEqual(["TX9H1LM:2", "TX9H2QN:2"]);
+  it("builds the origin tree: countries with their vendors, most POs first", () => {
+    const { origin } = opts({});
+    expect(origin.map((c) => `${c.value}:${c.count}`)).toEqual(["CHN:3", "PAK:1"]);
+    expect(origin[1].vendors).toEqual([{ value: "50417", label: "Indus Home Mills Pvt Ltd", count: 1 }]);
+    expect(origin[0].vendors.map((v) => v.label)).toEqual([
+      "Harbor Point Trading Ltd",
+      "Larkshore Textile Co Ltd",
+      "Westlake Fiber Arts Ltd",
+    ]);
   });
 
-  it("only offers values that fit the status tab", () => {
-    // Approved has one PO (TX9K3RA, Shanghai, master TX9H1LM): nothing else is offered.
-    expect(options({ status: "approved" })).toEqual({ country: ["CHN:1"], vendor: ["50388:1"], master: ["TX9H1LM:1"] });
+  it("only offers what fits the status tab and the master PO list", () => {
+    // Approved has one PO: TX9K3RA (Larkshore, China, master TX9H1LM).
+    const { origin, master } = opts({ status: "approved" });
+    expect(origin.map((c) => c.value)).toEqual(["CHN"]);
+    expect(origin[0].vendors.map((v) => v.value)).toEqual(["50388"]);
+    expect(master.map((m) => `${m.value}:${m.count}`)).toEqual(["TX9H1LM:1"]);
   });
 
-  it("doesn't let a facet hide its own other values, and keeps ticked values", () => {
-    expect(options({ country: ["CHN"] }).country).toEqual(["CHN:3", "PAK:1"]);
-    expect(options({ status: "approved", country: ["PAK"] }).country).toEqual(["CHN:1", "PAK:0"]);
+  it("doesn't let the tree hide its own options, and keeps ticked values", () => {
+    expect(opts({ country: ["CHN"] }).origin.map((c) => c.value)).toEqual(["CHN", "PAK"]);
+    expect(opts({ status: "approved", country: ["PAK"] }).origin.map((c) => `${c.value}:${c.count}`)).toEqual(["CHN:1", "PAK:0"]);
   });
 });

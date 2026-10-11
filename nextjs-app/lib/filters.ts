@@ -3,10 +3,14 @@
  *
  * - Status (All / Pending review / Approved / Needs correction) is a filter too, shown as tabs because there is
  *   always exactly one and it is the main way people work through the list.
- * - The Filters menu has three facets: origin country, vendor, master PO. Inside a facet a PO
- *   matches any ticked value (OR); across facets and the status it must match each one (AND).
- * - Each facet only offers values that would return POs given everything else that is set,
- *   with a count, ordered by count. A ticked value always stays visible so it can be unticked.
+ * - The Filters menu has two groups, laid out the way a person thinks about them:
+ *     Origin & vendor: a tree, country > the vendors that ship from it. Ticking a country means
+ *       "everything from there"; ticking a vendor adds just that vendor. A PO matches if its
+ *       country OR its vendor is ticked.
+ *     Master PO: a list.
+ *   A PO must match each group that has something ticked, and the status tab (AND).
+ * - Each group only offers values that would return POs given the other group and the tab,
+ *   with counts. A ticked value always stays visible so it can be unticked.
  *
  * Everything lives in the URL (?status=pending&country=CHN,PAK&vendor=50201&master=TX9H1LM),
  * so every view is a shareable link and the server can render it. Pure functions.
@@ -16,7 +20,6 @@ import { countryName, originOf } from "@/lib/origin";
 import { reviewStatuses, type Order, type ReviewStatus } from "@/lib/types";
 
 export type Facet = "country" | "vendor" | "master";
-export const facets: Facet[] = ["country", "vendor", "master"];
 export type ListFilters = { status?: ReviewStatus } & Record<Facet, string[]>;
 
 // What each facet reads from an order, how its values must look in the URL, and how to label them.
@@ -52,17 +55,20 @@ export function filtersFromSearchParams(params: { get(name: string): string | nu
   });
 }
 
-/** True when the order passes the status and every facet that has a selection. */
+/** True when the order passes the status tab, the origin & vendor tree, and the master PO list. */
 export function matches(order: Order, filters: ListFilters): boolean {
   if (filters.status && order.status !== filters.status) return false;
-  return facets.every((f) => filters[f].length === 0 || filters[f].includes(facetDef[f].valueOf(order) ?? ""));
+  const { country, vendor, master } = filters;
+  const inOrigin =
+    (country.length === 0 && vendor.length === 0) ||
+    country.includes(facetDef.country.valueOf(order) ?? "") ||
+    vendor.includes(facetDef.vendor.valueOf(order) ?? "");
+  const inMaster = master.length === 0 || master.includes(order.refMasterPo);
+  return inOrigin && inMaster;
 }
 
-/** Number of facet values ticked (not counting the status tab). */
-export const activeFacetCount = (filters: ListFilters) => facets.reduce((n, f) => n + filters[f].length, 0);
 
 export type FacetOption = { value: string; label: string; count: number };
-export type FacetGroup = { facet: Facet; title: string; options: FacetOption[] };
 
 /** Display label for a facet value: "CHN" -> "China", "50201" -> "Harbor Point Trading Ltd". */
 function labelFor(facet: Facet, value: string, orders: Order[]): string {
@@ -74,24 +80,64 @@ function labelFor(facet: Facet, value: string, orders: Order[]): string {
   return value;
 }
 
+export type VendorNode = FacetOption; // value = vendor number
+export type CountryNode = FacetOption & { vendors: VendorNode[] };
+
 /**
- * The options for every facet, given the current filters. A facet's counts use all the
- * other filters (including the status tab) but not itself, so ticking China doesn't hide
- * Pakistan. Values with no POs are left out unless they are ticked.
+ * The options for the Filters panel, given the current filters.
+ * - origin: countries, each with the vendors that ship from it. Counts use the status tab and
+ *   the master PO list, but not the tree itself, so ticking China doesn't hide Pakistan.
+ * - master: master POs, counted with the status tab and the tree.
+ * Anything with no POs is left out unless it is ticked. Larger counts come first.
  */
-export function facetOptions(orders: Order[], filters: ListFilters): FacetGroup[] {
-  return facets.map((facet) => {
-    const others = { ...filters, [facet]: [] };
-    const counts = new Map<string, number>();
-    for (const o of orders) {
-      if (!matches(o, others)) continue;
-      const value = facetDef[facet].valueOf(o);
-      if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
-    }
-    for (const ticked of filters[facet]) if (!counts.has(ticked)) counts.set(ticked, 0);
-    const options = [...counts]
-      .map(([value, count]) => ({ value, label: labelFor(facet, value, orders), count }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-    return { facet, title: facetDef[facet].title, options };
-  });
+export function filterOptions(orders: Order[], filters: ListFilters): { origin: CountryNode[]; master: FacetOption[] } {
+  const byCount = (a: FacetOption, b: FacetOption) => b.count - a.count || a.label.localeCompare(b.label);
+
+  // --- Origin & vendor tree ---
+  const forTree = orders.filter((o) => matches(o, { ...filters, country: [], vendor: [] }));
+  const countries = new Map<string, { count: number; vendors: Map<string, number> }>();
+  for (const o of forTree) {
+    const c = facetDef.country.valueOf(o);
+    const v = facetDef.vendor.valueOf(o);
+    if (!c || !v) continue;
+    const node = countries.get(c) ?? { count: 0, vendors: new Map() };
+    node.count += 1;
+    node.vendors.set(v, (node.vendors.get(v) ?? 0) + 1);
+    countries.set(c, node);
+  }
+  // Keep ticked values visible even when they have nothing left.
+  for (const c of filters.country) if (!countries.has(c)) countries.set(c, { count: 0, vendors: new Map() });
+  for (const v of filters.vendor) {
+    const home = orders.find((o) => facetDef.vendor.valueOf(o) === v);
+    const c = home && facetDef.country.valueOf(home);
+    if (!c) continue;
+    const node = countries.get(c) ?? { count: 0, vendors: new Map() };
+    if (!node.vendors.has(v)) node.vendors.set(v, 0);
+    countries.set(c, node);
+  }
+  const origin = [...countries]
+    .map(([value, node]) => ({
+      value,
+      label: labelFor("country", value, orders),
+      count: node.count,
+      vendors: [...node.vendors]
+        .map(([v, count]) => ({ value: v, label: labelFor("vendor", v, orders), count }))
+        .sort(byCount),
+    }))
+    .sort(byCount);
+
+  // --- Master PO list ---
+  const masterCounts = new Map<string, number>();
+  for (const o of orders) {
+    if (matches(o, { ...filters, master: [] })) masterCounts.set(o.refMasterPo, (masterCounts.get(o.refMasterPo) ?? 0) + 1);
+  }
+  for (const m of filters.master) if (!masterCounts.has(m)) masterCounts.set(m, 0);
+  const master = [...masterCounts].map(([value, count]) => ({ value, label: value, count })).sort(byCount);
+
+  return { origin, master };
+}
+
+/** Label for a ticked value, for the chips: "China", "Harbor Point Trading Ltd", "TX9H1LM". */
+export function filterLabel(facet: Facet, value: string, orders: Order[]): string {
+  return labelFor(facet, value, orders);
 }

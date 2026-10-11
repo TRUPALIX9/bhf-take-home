@@ -191,32 +191,37 @@ test("clicking a column header sorts the table, and clicking again reverses it",
   await expect(firstPo).toHaveText("TX9K3RA"); // the smallest PO
 });
 
-test("Filters: only offers options that fit, ticks apply at once, Select all and Clear all work", async ({ page }) => {
+test("Filters: origin and vendor as a tree, grouped chips, Clear all", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /^Filters/ }).click();
   const panel = page.getByRole("dialog", { name: "Filter purchase orders" });
-  const vendors = panel.locator("fieldset", { hasText: "Vendor" });
+  const allTab = page.getByRole("link", { name: /^All/ });
 
-  // Before any filter, all four vendors are offered.
-  await expect(vendors.getByRole("checkbox")).toHaveCount(4);
-
-  // Tick China: the table filters at once, and Indus Home Mills (Pakistan) is no longer offered.
+  // Ticking a country ticks every vendor under it, and filters at once.
   await panel.getByLabel(/^China/).check();
   await expect(page).toHaveURL(/country=CHN/);
-  await expect(vendors.getByRole("checkbox")).toHaveCount(3);
-  await expect(vendors.getByText("Indus Home Mills Pvt Ltd")).toHaveCount(0);
+  await expect(panel.getByLabel(/^Harbor Point/)).toBeChecked();
+  await expect(allTab).toContainText("3");
 
-  // Tick one vendor: one PO. Select all vendors: China's three again.
-  await vendors.getByLabel(/^Harbor Point/).check();
-  await expect(page.getByRole("link", { name: /^All/ })).toContainText("1");
-  await vendors.getByRole("button", { name: "Select all" }).click();
-  await expect(page.getByRole("link", { name: /^All/ })).toContainText("3");
+  // A vendor from another country adds to it (country OR vendor): all four POs.
+  await panel.getByLabel(/^Indus Home Mills/).check();
+  await expect(allTab).toContainText("4");
+
+  // Unticking one vendor of a fully ticked country keeps the others: 3 POs, China partly ticked.
+  await panel.getByLabel(/^Harbor Point/).uncheck();
+  await expect(allTab).toContainText("3");
+  await expect(panel.getByLabel(/^China/)).not.toBeChecked();
   await page.getByRole("button", { name: "Done" }).click();
 
-  // Clear all removes every chip.
+  // Several picks show as one chip per group; it opens a list to remove from.
+  // Indus is Pakistan's only vendor, so ticking it counts as all of Pakistan.
+  await page.getByRole("button", { name: "Origin & vendor (3)" }).click();
+  await page.getByRole("button", { name: "Remove filter Pakistan" }).click();
+  await expect(allTab).toContainText("2");
+
   await page.getByRole("button", { name: "Clear all" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: /^All/ })).toContainText("4");
+  await expect(allTab).toContainText("4");
 });
 
 test("clicking anywhere on a row opens the PO", async ({ page, isMobile }) => {
