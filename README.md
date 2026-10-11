@@ -54,4 +54,4 @@ Built with Claude Code. The instruction files it used are committed unchanged: [
 
 ## Time spent
 
-About 1.5 hours in total for both parts, working with Claude Code (see AI use above).
+About 1 hour in total for both parts, working with Claude Code (see AI use above).
