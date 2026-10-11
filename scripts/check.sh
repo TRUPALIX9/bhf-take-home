@@ -56,7 +56,7 @@ if [ "$do_next" = 1 ]; then
   step "next: lint";      npm run --silent lint
   step "next: typecheck"; npx tsc --noEmit
   step "next: test";      npm test --silent
-  step "next: build";     npm run --silent build
+  step "next: build";     NEXT_DIST_DIR=.next-test npm run --silent build  # own folder, so a running dev server is untouched
   if [ "$do_e2e" = 1 ]; then
     step "next: e2e"
     npm run --silent test:e2e

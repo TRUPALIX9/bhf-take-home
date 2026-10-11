@@ -43,3 +43,6 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# Build output for tests and scripts/check.sh (see next.config.ts)
+/.next-test/

@@ -28,6 +28,6 @@ export default defineConfig({
     // Locally, reuse a server already on the port; in CI always start fresh.
     reuseExistingServer: !process.env.CI,
     // Makes one PO fail to load, so the error boundary can be tested.
-    env: { FAIL_PO: "TX9K5DC" },
+    env: { FAIL_PO: "TX9K5DC", NEXT_DIST_DIR: ".next-test" },
   },
 });
