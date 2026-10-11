@@ -4,7 +4,7 @@
 |---|---|---|
 | Next.js assessment (required) | [`nextjs-app/`](nextjs-app/README.md) | Done |
 | Python assessment (optional) | [`python-po-parser/`](python-po-parser/README.md) | Done |
-| Original briefs and sample files | [`technical-assessment/`](technical-assessment/README.md) | Unchanged, with a requirement → code → test map |
+| Brief requirements and sample files | [`technical-assessment/`](technical-assessment/README.md) | Requirement → code → test map, original sample PO and template |
 
 ![PO Review dashboard](docs/screenshots/list.png)
 
@@ -14,7 +14,7 @@ Both parts use purchase orders as their subject. The Next.js app reviews POs; th
 
 ```
 bhf-take-home/
-├── technical-assessment/   what BHF sent: both PDFs, sample PO, output template, requirement map
+├── technical-assessment/   what BHF asked for: requirement map, sample PO, output template
 ├── nextjs-app/             Part A: Next.js 15 PO review app (own README and CLAUDE.md)
 ├── python-po-parser/       Part B: PO text → spreadsheet script (own README and CLAUDE.md)
 ├── docs/

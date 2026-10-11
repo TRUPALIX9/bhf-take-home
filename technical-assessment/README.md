@@ -1,13 +1,11 @@
-# Technical assessment: original materials
+# Technical assessment: requirements and sample files
 
-What BHF sent for the Software Engineer, Full Stack & Automation role, kept unchanged, plus a map from every requirement to the code and test that meets it.
+What BHF asked for in the Software Engineer, Full Stack & Automation take-home, with a map from every requirement to the code and test that meets it. The two brief PDFs are not included, to keep BHF's assessment material private; every requirement from them is listed below.
 
 ## Files
 
 | File | What it is |
 |---|---|
-| [`nextjs-take-home-assessment.pdf`](nextjs-take-home-assessment.pdf) | Next.js brief (required) |
-| [`python-take-home-assessment.pdf`](python-take-home-assessment.pdf) | Python brief (optional) |
 | [`purchase_order_sample.txt`](purchase_order_sample.txt) | Sample vendor purchase order for the Python task |
 | [`output_template_blank.xlsx`](output_template_blank.xlsx) | Column headers the Python output must match |
 
@@ -19,7 +17,13 @@ What BHF sent for the Software Engineer, Full Stack & Automation role, kept unch
 - Reply with public GitHub repo link(s): one repo per assessment, or one repo with two clearly separated folders. Each part has its own README.
 - If an AI coding assistant was used, include its instruction or context file (CLAUDE.md or similar), or a note in the README.
 - If anything is unclear, note the assumption in the README rather than guessing.
-- The email gives 3 days; both PDFs say 2 days.
+- The email gives 3 days; both briefs say 2 days.
+
+## The briefs in short
+
+**Next.js (required).** Build a small Next.js app (App Router, v15, TypeScript, Tailwind) that demonstrates server-side rendering, a server action and dynamic routing, with a README. Aim for 2–3 focused hours. Evaluated on correct setup, data fetching and rendering, a working server action, a working dynamic route, code organization and clarity, and (bonus) UI polish and creativity.
+
+**Python (optional).** BHF receives vendor purchase orders as semi-structured text and needs them as clean spreadsheets. Parse the sample PO, output one row per SKU matching the template, recompute and flag EXT QTY and EXT COST, and write a README. Evaluated on correct field extraction (including the UPC line under each item row), output matching the schema and values, sensible validation, code clarity, and README quality. Explicitly not meant to be generic or production-grade.
 
 ## Requirements → where they are met
 

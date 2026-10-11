@@ -9,7 +9,7 @@ Two independent programs and the original materials they were built from. Solid 
 ```mermaid
 flowchart TB
   subgraph T["technical-assessment/: originals"]
-    PDFS["Next.js and Python briefs (PDF)"]
+    PDFS["requirement map (README.md)"]
     OTXT["purchase_order_sample.txt"]
     OTPL["output_template_blank.xlsx"]
   end
