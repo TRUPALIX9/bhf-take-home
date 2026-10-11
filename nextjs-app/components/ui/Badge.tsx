@@ -19,19 +19,23 @@ export function Badge({
   children,
   dot = true,
   testId,
+  trailing,
 }: {
   tone: Tone;
   children: React.ReactNode;
   dot?: boolean;
   testId?: string;
+  /** Something shown inside the pill after the label, e.g. the ⓘ on the PO page status. */
+  trailing?: React.ReactNode;
 }) {
   return (
     <span
-      data-testid={testId}
       className={`num inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${tones[tone]}`}
     >
       {dot && <span aria-hidden className="size-1.5 rounded-full bg-current" />}
-      {children}
+      {/* testId sits on the label only, so tests read "Pending review" without the extras */}
+      <span data-testid={testId}>{children}</span>
+      {trailing}
     </span>
   );
 }

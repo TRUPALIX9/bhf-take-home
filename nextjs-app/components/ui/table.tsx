@@ -7,14 +7,36 @@ import Link from "next/link";
 
 type Align = "left" | "right";
 
+/** A header's text. With a `hint`, it gets a dotted underline and the hint as a tooltip
+ *  (and as screen-reader text), for headers that need explaining. */
+function HeaderLabel({ label, hint }: { label: string; hint?: string }) {
+  if (!hint) return <>{label}</>;
+  return (
+    <span title={hint} className="cursor-help underline decoration-dotted decoration-line-strong underline-offset-4">
+      {label}
+      <span className="sr-only">: {hint}</span>
+    </span>
+  );
+}
+
 /** Header cell. scope="col" tells screen readers which column each data cell belongs to. */
-export function Th({ children, align = "left", dense = false }: { children: React.ReactNode; align?: Align; dense?: boolean }) {
+export function Th({
+  children,
+  align = "left",
+  dense = false,
+  hint,
+}: {
+  children: React.ReactNode;
+  align?: Align;
+  dense?: boolean;
+  hint?: string; // tooltip explaining the column
+}) {
   return (
     <th
       scope="col"
       className={`${dense ? "px-2.5" : "px-4"} py-3 font-medium whitespace-nowrap text-muted ${align === "right" ? "text-right" : "text-left"}`}
     >
-      {children}
+      {hint && typeof children === "string" ? <HeaderLabel label={children} hint={hint} /> : children}
     </th>
   );
 }
@@ -51,8 +73,10 @@ export function SortTh({
   dir,
   align = "left",
   dense = false,
+  hint,
 }: {
   label: string;
+  hint?: string; // tooltip explaining the column
   href: string;
   dir?: "asc" | "desc"; // set when this column is the sorted one
   align?: Align;
@@ -72,7 +96,7 @@ export function SortTh({
           align === "right" ? "flex-row-reverse" : ""
         }`}
       >
-        {label}
+        <HeaderLabel label={label} hint={hint} />
         <span aria-hidden className={dir ? "text-accent" : "text-line-strong"}>
           {dir ? (dir === "asc" ? "↑" : "↓") : "↕"}
         </span>

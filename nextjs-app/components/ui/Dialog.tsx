@@ -36,7 +36,7 @@ export function Dialog({
       aria-label={title}
       onClose={onClose} // fires on Escape too
       onClick={(e) => e.target === ref.current && onClose()} // a click on the backdrop
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface p-0 text-ink shadow-xl backdrop:bg-ink/40 motion-safe:open:animate-fade-in"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface p-0 text-ink shadow-xl backdrop:bg-ink/40 motion-safe:open:animate-appear"
     >
       <div className="flex flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold">{title}</h2>

@@ -55,8 +55,10 @@ type Props = {
   status: ReviewStatus;
   correctionNote?: string;
   subtitle: string; // "Harbor Point Trading Ltd · $447,455.12 · ships May 2, 2026"
-  /** ⓘ button with the check details (server-rendered). */
+  /** "How this PO was checked" panel (server-rendered), opened from the status pill. */
   info?: React.ReactNode;
+  /** True when a check failed; the ⓘ in the status pill turns red. */
+  hasProblems?: boolean;
   /** Problems found on the PO (server-rendered); nothing when there are none. */
   problems?: React.ReactNode;
   /** Starts the correction note when problems were found, so the vendor hears exactly what to fix. */
@@ -64,7 +66,7 @@ type Props = {
 };
 
 /** Title, status, actions, confirmation dialog, and the correction note when there is one. */
-export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, problems, suggestedNote }: Props) {
+export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, hasProblems, problems, suggestedNote }: Props) {
   const [decision, setDecision] = useState<Decision | null>(null);
 
   // --- Optimistic state ---
@@ -95,8 +97,31 @@ export function ReviewPanel({ poNumber, status, correctionNote, subtitle, info, 
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl font-semibold tracking-tight">{poNumber}</h1>
-            <StatusBadge status={shown} />
-            {info}
+            {/* Status and check details in one control: the pill shows the status with an ⓘ,
+                and clicking it opens what was checked. <details> needs no extra state. */}
+            <details className="relative">
+              <summary
+                aria-label={`How this PO was checked (status: ${shown.replace("_", " ")})`}
+                className="cursor-pointer list-none rounded-full [&::-webkit-details-marker]:hidden"
+              >
+                <StatusBadge
+                  status={shown}
+                  trailing={
+                    <span
+                      aria-hidden
+                      className={`grid size-4 place-items-center rounded-full border text-[0.6rem] font-bold ${
+                        hasProblems ? "border-danger text-danger" : "border-current opacity-70"
+                      }`}
+                    >
+                      i
+                    </span>
+                  }
+                />
+              </summary>
+              <div className="absolute top-full left-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-4 shadow-lg">
+                {info}
+              </div>
+            </details>
           </div>
           <p className="text-muted">{subtitle}</p>
         </div>

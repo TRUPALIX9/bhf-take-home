@@ -266,13 +266,13 @@ test("line items sort by a column, reverse, then go back to printed order", asyn
   const firstSku = page.locator("article tbody tr").first().locator("td").nth(1);
   await expect(firstSku).toContainText("71097188"); // printed order
 
-  await page.getByRole("link", { name: /Ext cost/ }).click();
+  await page.getByRole("link", { name: /Line cost/ }).click();
   await expect(page).toHaveURL(/lines=extCost&dir=desc/);
   await expect(firstSku).toContainText("71097225"); // $124,801.60, the largest line
 
-  await page.getByRole("link", { name: /Ext cost/ }).click(); // reversed
+  await page.getByRole("link", { name: /Line cost/ }).click(); // reversed
   await expect(firstSku).toContainText("71293238"); // $444.60, the smallest line
-  await page.getByRole("link", { name: /Ext cost/ }).click(); // back to printed order
+  await page.getByRole("link", { name: /Line cost/ }).click(); // back to printed order
   await expect(page).toHaveURL(/\/orders\/TX9K2QP$/);
   await expect(firstSku).toContainText("71097188");
 });

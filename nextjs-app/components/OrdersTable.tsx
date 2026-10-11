@@ -3,8 +3,8 @@
  * boundary by the filters and the sort, so changing any of them reloads only this part.
  *
  * POs are grouped under their master PO (the parent order printed as "REF MASTER PO#"):
- * a header row per master PO, its POs indented beneath. One value per cell. Every column but
- * "Ships from" sorts (inside each group), and the whole row opens the PO. Sorting and filtering happen on the server from the URL, so
+ * a header row per master PO, its POs indented beneath. One value per cell. Ship date and total cost
+ * sort (inside each group), and the whole row opens the PO. Sorting and filtering happen on the server from the URL, so
  * the header links are plain links.
  */
 
@@ -13,7 +13,7 @@ import { MasterGroupRows, MasterGroupSection } from "@/components/MasterGroup";
 import { StatusBadge } from "@/components/StatusBadge";
 import { linkClass } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { SortTh, Td } from "@/components/ui/table";
+import { SortTh, Td, Th } from "@/components/ui/table";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrders } from "@/lib/orders";
 import { matches, type ListFilters } from "@/lib/filters";
@@ -116,19 +116,17 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
     <div className="motion-safe:animate-fade-in">
       {/* Wide screens: table (from lg, where its 7 columns fit). One collapsible <tbody> per master PO.
           The wrapper scrolls sideways if a long value ever makes it wider, so it never spills out of the card. */}
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="relative hidden overflow-x-auto lg:block">
       <table className="w-full">
         <caption className="sr-only">Purchase orders, grouped by master PO</caption>
         <thead className="border-b border-line bg-subtle">
           <tr>
-            {header("PO number", "po")}
-            {header("Status", "status")}
-            {header("Vendor", "vendor")}
-            <th scope="col" className="px-4 py-3 text-left font-medium whitespace-nowrap text-muted">
-              Ships from
-            </th>
+            <Th>PO number</Th>
+            <Th>Status</Th>
+            <Th>Vendor</Th>
+            <Th>Ships from</Th>
             {header("Ship date", "ship")}
-            {header("Lines", "lines", "right")}
+            <Th align="right">Lines</Th>
             {header("Total cost", "total", "right")}
           </tr>
         </thead>

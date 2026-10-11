@@ -25,8 +25,13 @@ describe("sortOrders", () => {
     expect(ids(sortOrders(orders, { key: "total", dir: "desc" }))).toEqual(["TX9K2QP", "TX9K5DC", "TX9K4MB", "TX9K3RA"]);
   });
 
-  it("sorts by vendor name, ignoring the vendor number", () => {
-    expect(ids(sortOrders(orders, { key: "vendor", dir: "asc" }))).toEqual(["TX9K2QP", "TX9K4MB", "TX9K3RA", "TX9K5DC"]);
+  it("sorts by ship date, earliest first (the default)", () => {
+    expect(ids(sortOrders(orders, { key: "ship", dir: "asc" }))).toEqual(["TX9K2QP", "TX9K3RA", "TX9K4MB", "TX9K5DC"]);
+  });
+
+  it("only allows the useful columns from the URL", () => {
+    expect(parseSort("vendor", "asc")).toEqual({ key: "ship", dir: "asc" });
+    expect(parseSort("lines", "desc")).toEqual({ key: "ship", dir: "asc" });
   });
 
   it("does not change the list it was given", () => {
@@ -37,10 +42,9 @@ describe("sortOrders", () => {
 });
 
 describe("header links", () => {
-  it("flips direction on the same column and starts numbers biggest first", () => {
+  it("flips direction on the same column and starts total with the biggest", () => {
     expect(nextSort({ key: "total", dir: "desc" }, "total")).toEqual({ key: "total", dir: "asc" });
     expect(nextSort({ key: "ship", dir: "asc" }, "total")).toEqual({ key: "total", dir: "desc" });
-    expect(nextSort({ key: "ship", dir: "asc" }, "vendor")).toEqual({ key: "vendor", dir: "asc" });
   });
 
   it("keeps the filters and leaves defaults out of the URL", () => {

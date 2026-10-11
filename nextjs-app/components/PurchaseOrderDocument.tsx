@@ -57,10 +57,11 @@ export function PurchaseOrderDocument({
   const totals = lineTotals(order.lines);
   const lines = sortLines(order.lines, lineSort);
   // Sortable header for a line-item column; clicking cycles sorted, reversed, printed order.
-  const sortTh = (label: string, key: LineSortKey, align?: "left" | "right") => (
+  const sortTh = (label: string, key: LineSortKey, align?: "left" | "right", hint?: string) => (
     <SortTh
       dense
       label={label}
+      hint={hint}
       href={lineSortHref(order.poNumber, nextLineSort(lineSort, key))}
       dir={lineSort?.key === key ? lineSort.dir : undefined}
       align={align}
@@ -124,24 +125,25 @@ export function PurchaseOrderDocument({
         ))}
       </dl>
 
-      {/* Line items in the PO's own column order; most columns sort. Wide, so it scrolls inside its own box. */}
-      <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Line items, scrolls sideways">
+      {/* Line items in the PO's own column order; ext cost and ext qty sort. Wide, so it scrolls inside its own box. */}
+      <div className="relative overflow-x-auto" role="region" tabIndex={0} aria-label="Line items, scrolls sideways">
         <table className="w-full min-w-[60rem]">
           <caption className="sr-only">Line items for {order.poNumber}</caption>
           <thead className="border-b border-line">
             <tr>
-              <Th dense>Dpt</Th>
-              {sortTh("SKU / UPC", "sku")}
-              <Th dense>Vendor part #</Th>
-              {sortTh("Description", "description")}
-              {sortTh("Retail", "retail", "right")}
-              {sortTh("Cost", "cost", "right")}
-              {sortTh("Ext cost", "extCost", "right")}
-              {sortTh("Ctns", "cartons", "right")}
-              <Th dense align="right">Cs pk</Th>
-              {sortTh("Ext qty", "extQty", "right")}
-              <Th dense align="right">Cube</Th>
-              {sortTh("Kg", "kilograms", "right")}
+              {/* Plain names; the hint (tooltip) says what each means and what the PO calls it. */}
+              <Th dense hint="Department number on the PO (DPT)">Dept</Th>
+              <Th dense hint="Our item number (SKU) and the barcode number (UPC) under it">SKU / UPC</Th>
+              <Th dense hint="The vendor's own number for this item (VENDOR PART#)">Vendor part</Th>
+              <Th dense>Description</Th>
+              <Th dense align="right" hint="Price the item sells for in store (RETAIL)">Retail price</Th>
+              <Th dense align="right" hint="What we pay the vendor for one unit (COST)">Unit cost</Th>
+              {sortTh("Line cost", "extCost", "right", "Unit cost × units: what this line costs (EXT COST)")}
+              <Th dense align="right" hint="Number of cartons shipped (CTNS)">Cartons</Th>
+              <Th dense align="right" hint="Units packed in each carton (CSPK, case pack)">Per carton</Th>
+              {sortTh("Units", "extQty", "right", "Cartons × per carton: total units on this line (EXT QTY)")}
+              <Th dense align="right" hint="Space one carton takes, as printed on the PO (CUBE)">Carton volume</Th>
+              <Th dense align="right" hint="Weight of one carton in kilograms, as printed on the PO (KILOGRAMS)">Carton kg</Th>
             </tr>
           </thead>
           <tbody>

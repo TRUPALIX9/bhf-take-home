@@ -5,11 +5,11 @@
  */
 import type { LineItem } from "@/lib/types";
 
-export const lineSortKeys = ["sku", "description", "retail", "cost", "extCost", "cartons", "extQty", "kilograms"] as const;
+// Only the columns that answer "which lines matter most": cost and quantity.
+export const lineSortKeys = ["extCost", "extQty"] as const;
 export type LineSortKey = (typeof lineSortKeys)[number];
 export type LineSort = { key: LineSortKey; dir: "asc" | "desc" } | undefined;
 
-const textKeys: LineSortKey[] = ["sku", "description"];
 
 /** Reads ?lines and ?dir. Anything unknown means printed order. */
 export function parseLineSort(key?: string, dir?: string): LineSort {
@@ -27,17 +27,15 @@ export function sortLines(lines: LineItem[], sort: LineSort): LineItem[] {
     .sort((a, b) => {
       const x = value(a.line);
       const y = value(b.line);
-      const cmp = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
-      return sign * cmp || a.i - b.i;
+      return sign * (x - y) || a.i - b.i;
     })
     .map(({ line }) => line);
 }
 
-/** Next sort for a header click: text starts A-Z, numbers start largest first; third click resets. */
+/** Next sort for a header click: largest first, then smallest first, then back to printed order. */
 export function nextLineSort(current: LineSort, key: LineSortKey): LineSort {
-  const first = textKeys.includes(key) ? "asc" : "desc";
-  if (current?.key !== key) return { key, dir: first };
-  if (current.dir === first) return { key, dir: first === "asc" ? "desc" : "asc" };
+  if (current?.key !== key) return { key, dir: "desc" };
+  if (current.dir === "desc") return { key, dir: "asc" };
   return undefined; // back to printed order
 }
 

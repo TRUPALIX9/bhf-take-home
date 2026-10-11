@@ -40,6 +40,7 @@ export async function OrderDetail({ poNumber, lineSort }: { poNumber: string; li
         subtitle={`${titleCase(vendorName(order))} · ${formatMoney(order.totalCost)} · ships ${formatDate(order.shipDate)}`}
         correctionNote={order.correctionNote}
         info={<ChecksInfo problems={problems} />}
+        hasProblems={problems.length > 0}
         problems={<ReviewChecks problems={problems} />}
         suggestedNote={problems.length ? problemsAsReason(problems) : undefined}
       />

@@ -28,7 +28,7 @@ describe("line sort", () => {
     const second = nextLineSort(first, "extCost");
     expect(second).toEqual({ key: "extCost", dir: "asc" });
     expect(nextLineSort(second, "extCost")).toBeUndefined();
-    expect(nextLineSort(undefined, "description")).toEqual({ key: "description", dir: "asc" });
+    expect(parseLineSort("description", "asc")).toBeUndefined(); // not a sortable column
   });
 
   it("builds the PO page URL", () => {

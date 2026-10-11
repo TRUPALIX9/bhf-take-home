@@ -13,9 +13,9 @@ const labels: Record<ReviewStatus, string> = {
 };
 
 /** Maps a review status to its label and color. The status name doubles as the Badge tone. */
-export function StatusBadge({ status }: { status: ReviewStatus }) {
+export function StatusBadge({ status, trailing }: { status: ReviewStatus; trailing?: React.ReactNode }) {
   return (
-    <Badge tone={status} testId="status">
+    <Badge tone={status} testId="status" trailing={trailing}>
       {labels[status]}
     </Badge>
   );

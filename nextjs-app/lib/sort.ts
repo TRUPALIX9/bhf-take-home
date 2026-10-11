@@ -3,10 +3,11 @@
  * The sort lives in the URL (?sort=total&dir=desc), so a sorted view can be shared
  * and the server renders it sorted; the browser needs no extra JavaScript.
  */
-import { vendorName } from "@/lib/format";
 import type { Order } from "@/lib/types";
 
-export const sortKeys = ["po", "status", "vendor", "ship", "lines", "total"] as const;
+// Only the columns where the order helps a decision: what ships first, where the money is.
+// Status, vendor and origin are filters instead; PO number and line count don't need sorting.
+export const sortKeys = ["ship", "total"] as const;
 export type SortKey = (typeof sortKeys)[number];
 export type SortDir = "asc" | "desc";
 export type Sort = { key: SortKey; dir: SortDir };
@@ -23,11 +24,7 @@ export function parseSort(sort?: string, dir?: string): Sort {
 
 // How to compare two orders for each column.
 const compare: Record<SortKey, (a: Order, b: Order) => number> = {
-  po: (a, b) => a.poNumber.localeCompare(b.poNumber),
-  status: (a, b) => a.status.localeCompare(b.status),
-  vendor: (a, b) => vendorName(a).localeCompare(vendorName(b)),
   ship: (a, b) => a.shipDate.localeCompare(b.shipDate), // ISO dates sort as strings
-  lines: (a, b) => a.lines.length - b.lines.length,
   total: (a, b) => a.totalCost - b.totalCost,
 };
 
@@ -37,11 +34,11 @@ export function sortOrders(orders: Order[], { key, dir }: Sort): Order[] {
   return [...orders].sort((a, b) => sign * compare[key](a, b) || a.poNumber.localeCompare(b.poNumber));
 }
 
-/** The sort a header link should apply: same column flips direction, a new column starts ascending
- *  (numbers and dates start descending, biggest or latest first, which is what people usually want). */
+/** The sort a header link should apply: the same column flips direction; total starts with the
+ *  biggest first, ship date with the earliest first. */
 export function nextSort(current: Sort, key: SortKey): Sort {
   if (current.key === key) return { key, dir: current.dir === "asc" ? "desc" : "asc" };
-  return { key, dir: key === "total" || key === "lines" ? "desc" : "asc" };
+  return { key, dir: key === "total" ? "desc" : "asc" };
 }
 
 /** The list filters that live in the URL next to the sort (see lib/filters.ts). */
