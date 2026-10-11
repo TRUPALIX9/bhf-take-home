@@ -100,22 +100,28 @@ export function OrderDetailSkeleton() {
           </div>
         ))}
       </Card>
-      <StatRow />
-      {/* line items, with the three address cards beside them on wide screens */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_17rem]">
-        <div className="rounded-lg border border-line">
-          <Rows count={8} columns={5} />
+      {/* three review checks */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className={`${bar} h-16`} />
+        ))}
+      </div>
+      {/* the PO document: header, three address blocks, terms strip, line items */}
+      <div className="flex flex-col rounded-lg border border-line-strong">
+        <div className="flex justify-between border-b border-line p-5">
+          <span className={`${bar} h-6 w-56`} />
+          <span className={`${bar} h-8 w-32`} />
         </div>
-        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 xl:content-start">
+        <div className="grid gap-4 border-b border-line p-4 sm:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <Card key={i} className="gap-2">
-              <span className={`${bar} h-4 w-20`} />
+            <div key={i} className="flex flex-col gap-2">
+              <span className={`${bar} h-3 w-16`} />
               <span className={`${bar} h-3.5 w-full`} />
               <span className={`${bar} h-3.5 w-3/4`} />
-              <span className={`${bar} h-3.5 w-2/3`} />
-            </Card>
+            </div>
           ))}
         </div>
+        <Rows count={8} columns={8} />
       </div>
     </Loading>
   );

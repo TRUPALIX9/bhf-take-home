@@ -20,7 +20,7 @@ type Props = {
   subtitle: string;
   poDate: string; // already formatted
   lineCount: number;
-  totalsMatch: boolean;
+  totalsMatch: boolean; // true when every review check passes
 };
 
 /** Builds the four tracker steps from the status that is on screen right now. */
@@ -30,7 +30,7 @@ function stepsFor(status: ReviewStatus, p: Props): Step[] {
     { title: "Received", detail: `PO dated ${p.poDate}`, state: "done" },
     {
       title: "Parsed and checked",
-      detail: p.totalsMatch ? `${p.lineCount} lines, totals match` : "Line totals do not match the PO",
+      detail: p.totalsMatch ? `${p.lineCount} lines, all checks pass` : "A check failed, see below",
       state: p.totalsMatch ? "done" : "problem",
     },
     {

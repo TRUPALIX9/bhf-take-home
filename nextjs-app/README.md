@@ -51,7 +51,7 @@ Everything below is extra. The brief's five requirements are complete without it
 
 - **Animated review flow.** `components/ReviewPanel.tsx` uses `useOptimistic`, so clicking Approve updates the badge, the button and the step tracker immediately. The connector line fills in and the check mark pops while the action runs. If saving fails, React restores the old status and the error appears under the button.
 - **Dashboard.** Stat cards (pending in amber, approved in green, total on order, next to ship), a review-progress bar by order value, and status tabs that filter through the URL (`/?status=pending`). Each PO's total has a bar so the large orders stand out.
-- **Detail page laid out by what decides approval.** Top to bottom: who and what state (PO, status, vendor, button, step tracker); the deciding facts (total, line check in green or red, ship date and terms, buyer); the line items, each with a bar for its cost and its share of the PO; and the addresses as reference in a side column. Each fact appears once. Item codes (SKU, UPC, part, dept) sit under the description instead of taking four columns, names are title-cased, and phone numbers are formatted.
+- **Detail page: the review on top, the PO as a document below.** Top: PO number, status, Approve button and step tracker, then three green/red checks that mirror the Python validator (cartons × pack = units, unit cost × units = ext cost, lines add up to the printed total; `lib/checks.ts`). Below: the purchase order laid out like the printed one a buyer or vendor knows: issuer and "PURCHASE ORDER" header, Vendor / Ship to / Bill to blocks, a terms strip (PO date, ship date, ship terms, ref master PO), the line items in the PO's own column order, and totals at the bottom right ending in the total invoice value. Names are title-cased and phone numbers formatted.
 - **Only what changes reloads.** The list page has two `<Suspense>` parts. The summary doesn't depend on the filter, so it stays on screen when you switch tabs; only the table (keyed by the filter) reloads. The clicked tab highlights immediately with a small spinner. React's `cache()` makes both parts share one data read per request.
 - **Loading states.** The heading renders at once and each part streams in behind an animated skeleton (`components/Skeletons.tsx`).
 - **Errors with codes.** Every error a person can see has a code and a plain message in `lib/errors.ts`, e.g. *PO-404 PO not found*, *PO-400 Status not recognised*, *PO-501 Status not saved*. Three error boundaries: the root layout (`global-error.tsx`), any page (`error.tsx`) and one PO (`orders/[poNumber]/error.tsx`). In production Next hides the real message, so the page also shows Next's error reference, which matches the server log.
@@ -84,7 +84,7 @@ UI pieces in `components/ui/`, used everywhere instead of one-off styles:
 | `Card` | Stat cards, order details, address blocks. |
 | `Th`, `Td` | Every table cell: one padding rule, numbers right-aligned with tabular digits. |
 | `Spinner` | Button and tab loading indicators. |
-| `Meter`, `SegmentedBar` | Share bars: each PO's and each line's cost, and approved vs pending value. |
+| `Meter`, `SegmentedBar` | Share bars: each PO's cost on the list, and approved vs pending value. |
 
 Motion is short (200–500 ms) and every animation is wrapped in `motion-safe:`, so it is off for people who ask their system for reduced motion.
 
@@ -108,7 +108,9 @@ components/
   OrdersSummary.tsx             stat cards + tab counts (server)
   OrdersTable.tsx               rows for the current filter (server)
   StatusTabs.tsx                tabs with instant highlight (client)
-  OrderDetail.tsx               stats, details, line items (server)
+  OrderDetail.tsx               review panel + checks + PO document (server)
+  ReviewChecks.tsx              the three pass/fail checks
+  PurchaseOrderDocument.tsx     the PO laid out like the printed document
   ReviewPanel.tsx               title, badge, button, step tracker (client, optimistic)
   ProcessSteps.tsx              Received → … → Ready for downstream
   Skeletons.tsx                 loading placeholders
@@ -117,6 +119,7 @@ lib/
   types.ts                      Order, LineItem, ReviewStatus
   orders.ts                     the only module that reads or changes data
   errors.ts                     error codes and messages
+  checks.ts                     the review checks (same rules as the Python validator)
   format.ts                     money, dates, totals
 data/orders.json                seed data
 e2e/                            Playwright tests and the screenshot script
@@ -147,8 +150,8 @@ e2e/                            Playwright tests and the screenshot script
 
 ## Tests
 
-- **Unit (Vitest, 27 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, percent, phone and name formatting.
-- **Malformed input to the server action (Vitest, in the 27):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
+- **Unit (Vitest, 30 tests):** order lookup and sort order, unknown PO, set both ways, setting is idempotent, a change affects only one PO, an unknown PO is rejected and nothing changes, only the two real statuses are accepted, every PO's lines add up to its total, the seed data has every field with the right type and no duplicate PO numbers, money, date, percent, phone and name formatting, and each review check catching a tampered line.
+- **Malformed input to the server action (Vitest, in the 30):** no fields, an unknown PO, a path in the PO number, a file instead of text, a missing status, an unknown status, the wrong case, and a script tag. Each returns PO-404 or PO-400 and changes nothing.
 - **End to end (Playwright, 10 tests × desktop and 375 px phone):** the raw HTML already contains the PO data (server rendering); list → detail shows 12 lines and $447,455.12; Approve → status changes, survives reload, approved count goes up, then moves back; approving from an out-of-date second tab keeps the PO approved; the step tracker moves to "Can be sent on" and back; tabs filter the list; `/orders/NOPE` returns 404 with code PO-404; a PO that fails to load shows the PO-500 error page with a working link back; no sideways page scroll.
 
 ## With more time
