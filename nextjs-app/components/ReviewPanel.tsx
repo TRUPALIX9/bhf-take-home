@@ -21,6 +21,8 @@ type Props = {
   poDate: string; // already formatted
   lineCount: number;
   totalsMatch: boolean; // true when every review check passes
+  /** The checks chip, rendered on the server and shown next to the step tracker. */
+  checks?: React.ReactNode;
 };
 
 /** Builds the four tracker steps from the status that is on screen right now. */
@@ -53,7 +55,7 @@ function stepsFor(status: ReviewStatus, p: Props): Step[] {
  * error appears under the button.
  */
 export function ReviewPanel(props: Props) {
-  const { poNumber, status, subtitle } = props;
+  const { poNumber, status, subtitle, checks } = props;
 
   // --- Optimistic state ---
   // `status` is the server value. `shownStatus` is what the user sees: it equals `status`
@@ -85,7 +87,7 @@ export function ReviewPanel(props: Props) {
 
   // --- Render ---
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5 shadow-sm">
       {/* Title bar: PO number, badge and subtitle on the left, button on the right */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
@@ -123,8 +125,11 @@ export function ReviewPanel(props: Props) {
         {isPending ? "Saving" : state.error ? "" : `Status: ${shownStatus === "approved" ? "Approved" : "Pending review"}`}
       </p>
 
-      {/* Step tracker follows shownStatus, so it moves on click like the badge. */}
-      <ProcessSteps steps={stepsFor(shownStatus, props)} />
+      {/* One compact row: step tracker (follows shownStatus, so it moves on click) and the checks chip. */}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-t border-line pt-4">
+        <ProcessSteps steps={stepsFor(shownStatus, props)} />
+        {checks}
+      </div>
     </div>
   );
 }

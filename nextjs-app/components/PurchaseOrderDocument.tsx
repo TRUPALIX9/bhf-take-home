@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { linkClass } from "@/components/ui/Button";
-import { Td, Th } from "@/components/ui/table";
+import { SortTh, Td, Th } from "@/components/ui/table";
 import {
   formatAddressLine,
   formatCount,
@@ -18,6 +18,7 @@ import {
   splitCode,
   titleCase,
 } from "@/lib/format";
+import { lineSortHref, nextLineSort, sortLines, type LineSort, type LineSortKey } from "@/lib/lineSort";
 import type { Order } from "@/lib/types";
 
 /** Small uppercase label used for every field name on the document, as on a printed form. */
@@ -43,9 +44,28 @@ function AddressBlock({ label, lines }: { label: string; lines: string[] }) {
 }
 
 /** The whole PO as a document card. */
-export function PurchaseOrderDocument({ order, masterCount }: { order: Order; masterCount: number }) {
+export function PurchaseOrderDocument({
+  order,
+  masterCount,
+  lineSort,
+}: {
+  order: Order;
+  masterCount: number;
+  lineSort: LineSort;
+}) {
   // --- Data ---
   const totals = lineTotals(order.lines);
+  const lines = sortLines(order.lines, lineSort);
+  // Sortable header for a line-item column; clicking cycles sorted, reversed, printed order.
+  const sortTh = (label: string, key: LineSortKey, align?: "left" | "right") => (
+    <SortTh
+      dense
+      label={label}
+      href={lineSortHref(order.poNumber, nextLineSort(lineSort, key))}
+      dir={lineSort?.key === key ? lineSort.dir : undefined}
+      align={align}
+    />
+  );
   const buyer = splitCode(order.buyer); // "610 JORDAN MILLER": 610 is the buyer code
   // The PO is issued by the bill-to party: "331 MERIDIAN SOURCING CO. INC." -> "Meridian Sourcing Co. Inc."
   const issuer = titleCase(splitCode(order.billTo[0]).name);
@@ -104,49 +124,49 @@ export function PurchaseOrderDocument({ order, masterCount }: { order: Order; ma
         ))}
       </dl>
 
-      {/* Line items in the PO's own column order. Wide, so it scrolls inside its own box. */}
+      {/* Line items in the PO's own column order; most columns sort. Wide, so it scrolls inside its own box. */}
       <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="Line items, scrolls sideways">
-        <table className="w-full min-w-[64rem]">
+        <table className="w-full min-w-[60rem]">
           <caption className="sr-only">Line items for {order.poNumber}</caption>
           <thead className="border-b border-line">
             <tr>
-              <Th>Dpt</Th>
-              <Th>SKU / UPC</Th>
-              <Th>Vendor part #</Th>
-              <Th>Description</Th>
-              <Th align="right">Retail</Th>
-              <Th align="right">Cost</Th>
-              <Th align="right">Ext cost</Th>
-              <Th align="right">Ctns</Th>
-              <Th align="right">Cs pk</Th>
-              <Th align="right">Ext qty</Th>
-              <Th align="right">Cube</Th>
-              <Th align="right">Kg</Th>
+              <Th dense>Dpt</Th>
+              {sortTh("SKU / UPC", "sku")}
+              <Th dense>Vendor part #</Th>
+              {sortTh("Description", "description")}
+              {sortTh("Retail", "retail", "right")}
+              {sortTh("Cost", "cost", "right")}
+              {sortTh("Ext cost", "extCost", "right")}
+              {sortTh("Ctns", "cartons", "right")}
+              <Th dense align="right">Cs pk</Th>
+              {sortTh("Ext qty", "extQty", "right")}
+              <Th dense align="right">Cube</Th>
+              {sortTh("Kg", "kilograms", "right")}
             </tr>
           </thead>
           <tbody>
-            {order.lines.map((l, i) => (
+            {lines.map((l, i) => (
               // Light zebra rows help the eye follow a wide row across.
               <tr key={l.sku} className={`border-t border-line ${i % 2 ? "bg-subtle/60" : ""}`}>
-                <Td mono>{l.dept}</Td>
-                <Td mono>
+                <Td dense mono>{l.dept}</Td>
+                <Td dense mono>
                   <span className="block">{l.sku}</span>
                   <span className="block text-xs text-muted">{l.upc}</span>
                 </Td>
-                <Td mono>{l.vendorPart}</Td>
-                <Td className="whitespace-nowrap">{l.description}</Td>
-                <Td align="right">{formatMoney(l.retail)}</Td>
-                <Td align="right">{formatUnitCost(l.cost)}</Td>
-                <Td align="right" className="font-medium">
+                <Td dense mono>{l.vendorPart}</Td>
+                <Td dense className="whitespace-nowrap">{l.description}</Td>
+                <Td dense align="right">{formatMoney(l.retail)}</Td>
+                <Td dense align="right">{formatUnitCost(l.cost)}</Td>
+                <Td dense align="right" className="font-medium">
                   {formatMoney(l.extCost)}
                 </Td>
-                <Td align="right">{formatCount(l.cartons)}</Td>
-                <Td align="right">{l.casePack}</Td>
-                <Td align="right">{formatCount(l.extQty)}</Td>
-                <Td align="right" className="text-muted">
+                <Td dense align="right">{formatCount(l.cartons)}</Td>
+                <Td dense align="right">{l.casePack}</Td>
+                <Td dense align="right">{formatCount(l.extQty)}</Td>
+                <Td dense align="right" className="text-muted">
                   {l.cube.toFixed(4)}
                 </Td>
-                <Td align="right" className="text-muted">
+                <Td dense align="right" className="text-muted">
                   {l.kilograms.toFixed(2)}
                 </Td>
               </tr>

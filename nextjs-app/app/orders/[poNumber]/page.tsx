@@ -8,13 +8,18 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { OrderDetail } from "@/components/OrderDetail";
 import { OrderDetailSkeleton } from "@/components/Skeletons";
+import { parseLineSort } from "@/lib/lineSort";
 import { orderExists, refMasterOf } from "@/lib/orders";
 
 // Status can change at any time, so never prerender this page.
 export const dynamic = "force-dynamic";
 
 // params is a Promise in Next 15, so await it before reading poNumber.
-type Props = { params: Promise<{ poNumber: string }> };
+type Props = {
+  params: Promise<{ poNumber: string }>;
+  // ?lines=extCost&dir=desc sorts the line items; none keeps the printed order.
+  searchParams: Promise<{ lines?: string; dir?: string }>;
+};
 
 /** Browser tab title, e.g. "PO TX9K2QP · PO Review" (suffix from the layout template). */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -23,8 +28,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /** Breadcrumb plus the streamed order detail for one PO. */
-export default async function OrderPage({ params }: Props) {
+export default async function OrderPage({ params, searchParams }: Props) {
   const { poNumber } = await params;
+  const { lines, dir } = await searchParams;
   // Check before anything streams, so an unknown PO gets a real 404 status.
   // notFound() throws and renders the sibling not-found.tsx.
   if (!orderExists(poNumber)) notFound();
@@ -52,7 +58,7 @@ export default async function OrderPage({ params }: Props) {
       </nav>
       {/* The breadcrumb shows at once; the order data streams in when ready. */}
       <Suspense fallback={<OrderDetailSkeleton />}>
-        <OrderDetail poNumber={poNumber} />
+        <OrderDetail poNumber={poNumber} lineSort={parseLineSort(lines, dir)} />
       </Suspense>
     </div>
   );

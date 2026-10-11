@@ -34,9 +34,9 @@ test("README screenshots", async ({ page }) => {
   await page.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible();
   await page.waitForTimeout(700); // let the step animation finish
-  await page.screenshot({ path: `${dir}/detail-approved.png`, clip: { x: 0, y: 0, width: 1280, height: 330 } });
+  await page.screenshot({ path: `${dir}/detail-approved.png`, clip: { x: 0, y: 0, width: 1280, height: 290 } });
   await page.getByRole("button", { name: "Move back to review" }).click();
-  await expect(page.getByText("Waiting for approval")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
 
   await page.goto("/orders/TX9K5DC"); // fails on purpose (FAIL_PO in playwright.config.ts)
   await expect(page.getByText("Error PO-500")).toBeVisible();

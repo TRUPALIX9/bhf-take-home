@@ -13,7 +13,7 @@ import { MasterGroupRows, MasterGroupSection } from "@/components/MasterGroup";
 import { StatusBadge } from "@/components/StatusBadge";
 import { linkClass } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { Td } from "@/components/ui/table";
+import { SortTh, Td } from "@/components/ui/table";
 import { formatDate, formatMoney, titleCase, vendorName } from "@/lib/format";
 import { getOrders } from "@/lib/orders";
 import { matches, type ListFilters } from "@/lib/filters";
@@ -22,42 +22,6 @@ import { countryName, originOf } from "@/lib/origin";
 import { listHref, nextSort, sortOrders, type Sort, type SortKey } from "@/lib/sort";
 
 type Filters = ListFilters;
-
-/** Column header that links to the same list sorted by this column. */
-function SortHeader({
-  label,
-  column,
-  sort,
-  filters,
-  align = "left",
-}: {
-  label: string;
-  column: SortKey;
-  sort: Sort;
-  filters: Filters;
-  align?: "left" | "right";
-}) {
-  const active = sort.key === column;
-  // aria-sort tells screen readers which column is sorted and which way.
-  const ariaSort = active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined;
-  return (
-    <th scope="col" aria-sort={ariaSort} className={`px-4 py-3 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
-      <Link
-        href={listHref(filters, nextSort(sort, column))}
-        scroll={false}
-        className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-ink ${
-          active ? "text-ink" : "text-muted"
-        } ${align === "right" ? "flex-row-reverse" : ""}`}
-      >
-        {label}
-        {/* Arrow shows the current direction; a faint pair marks a column you can sort by. */}
-        <span aria-hidden className={active ? "text-accent" : "text-line-strong"}>
-          {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
-        </span>
-      </Link>
-    </th>
-  );
-}
 
 /** What to say when the filters leave no rows. */
 function emptyMessage({ status, country, vendor, master }: Filters): { title: string; detail: string; caughtUp: boolean } {
@@ -130,7 +94,12 @@ export async function OrdersTable({ filters, sort }: { filters: Filters; sort: S
   const shown = sortOrders((await getOrders()).filter((o) => matches(o, filters)), sort);
   const groups = groupByMaster(shown);
   const header = (label: string, column: SortKey, align?: "left" | "right") => (
-    <SortHeader label={label} column={column} sort={sort} filters={filters} align={align} />
+    <SortTh
+      label={label}
+      href={listHref(filters, nextSort(sort, column))}
+      dir={sort.key === column ? sort.dir : undefined}
+      align={align}
+    />
   );
   // Link that narrows the list to one master PO, keeping the other filters and the sort.
   const masterHref = (master: string) => listHref({ ...filters, master: [master] }, sort);

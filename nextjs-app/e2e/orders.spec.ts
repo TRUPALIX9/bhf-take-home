@@ -97,12 +97,12 @@ test.describe("review status", () => {
     await expect(review).toHaveAttribute("aria-current", "step");
 
     await page.getByRole("button", { name: "Approve" }).click();
-    await expect(page.getByText("Can be sent on")).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ hasText: "Ready for downstream" })).toContainText("(done)");
     await expect(page.getByRole("button", { name: "Move back to review" })).toBeVisible(); // saved
     await expect(review).not.toHaveAttribute("aria-current", "step");
 
     await page.getByRole("button", { name: "Move back to review" }).click();
-    await expect(page.getByText("Waiting for approval")).toBeVisible();
+    await expect(review).toHaveAttribute("aria-current", "step");
   });
 });
 
@@ -232,4 +232,20 @@ test("a master PO group collapses and expands", async ({ page, isMobile }) => {
   await expect(row).toBeHidden();
   await page.getByRole("button", { name: "Expand master PO TX9H1LM" }).click();
   await expect(row).toBeVisible();
+});
+
+test("line items sort by a column, reverse, then go back to printed order", async ({ page }) => {
+  await page.goto("/orders/TX9K2QP");
+  const firstSku = page.locator("article tbody tr").first().locator("td").nth(1);
+  await expect(firstSku).toContainText("71097188"); // printed order
+
+  await page.getByRole("link", { name: /Ext cost/ }).click();
+  await expect(page).toHaveURL(/lines=extCost&dir=desc/);
+  await expect(firstSku).toContainText("71097225"); // $124,801.60, the largest line
+
+  await page.getByRole("link", { name: /Ext cost/ }).click(); // reversed
+  await expect(firstSku).toContainText("71293238"); // $444.60, the smallest line
+  await page.getByRole("link", { name: /Ext cost/ }).click(); // back to printed order
+  await expect(page).toHaveURL(/\/orders\/TX9K2QP$/);
+  await expect(firstSku).toContainText("71097188");
 });
